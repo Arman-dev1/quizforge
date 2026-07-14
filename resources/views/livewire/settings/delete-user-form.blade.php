@@ -1,6 +1,8 @@
 <?php
 
+use App\Enums\WorkspaceRole;
 use App\Livewire\Actions\Logout;
+use App\Models\Workspace;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Volt\Component;
 
@@ -16,7 +18,32 @@ new class extends Component {
             'password' => ['required', 'string', 'current_password'],
         ]);
 
-        tap(Auth::user(), $logout(...))->delete();
+        $user = Auth::user();
+
+        // Workspaces where this user is the only owner but other members remain
+        // would be orphaned — block deletion until ownership is transferred.
+        $blocking = $user->workspaces()
+            ->wherePivot('role', WorkspaceRole::Owner->value)
+            ->get()
+            ->filter(fn (Workspace $workspace) => $workspace->owners()->count() === 1
+                && $workspace->members()->count() > 1);
+
+        if ($blocking->isNotEmpty()) {
+            $this->addError('password', __('You are the only owner of :names. Transfer ownership or remove the other members first.', [
+                'names' => $blocking->pluck('name')->join(', '),
+            ]));
+
+            return;
+        }
+
+        // Workspaces where they are the only member go with them.
+        $user->workspaces()
+            ->get()
+            ->filter(fn (Workspace $workspace) => $workspace->members()->count() === 1)
+            ->each
+            ->delete();
+
+        tap($user, $logout(...))->delete();
 
         $this->redirect('/', navigate: true);
     }
