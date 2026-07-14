@@ -22,6 +22,10 @@ Route::middleware(['auth'])->group(function () {
 
     Volt::route('workspaces/create', 'workspaces.create')->name('workspaces.create');
     Volt::route('invitations/{token}', 'invitations.accept')->name('invitations.accept');
+
+    Volt::route('quizzes', 'quizzes.index')->name('quizzes.index');
+    Volt::route('quizzes/create', 'quizzes.create')->name('quizzes.create');
+    Volt::route('quizzes/{quiz}', 'quizzes.show')->name('quizzes.show');
 });
 
 require __DIR__.'/auth.php';
