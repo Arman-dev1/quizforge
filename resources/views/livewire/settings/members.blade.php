@@ -171,8 +171,8 @@ new class extends Component {
     <x-settings.layout heading="{{ __('Members') }}" :subheading="__('Manage who has access to :name', ['name' => $workspace->name])">
         @if ($canManage)
             <form wire:submit="invite" class="mt-6 space-y-4">
-                <div class="flex items-end gap-3">
-                    <div class="flex-1">
+                <div class="flex flex-wrap items-end gap-3">
+                    <div class="min-w-48 flex-1">
                         <flux:input
                             wire:model="email"
                             label="{{ __('Invite by email') }}"

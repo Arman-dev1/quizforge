@@ -506,7 +506,7 @@ new class extends Component {
                                     wire:click="selectQuestion({{ $question->id }})"
                                     @class([
                                         'flex w-full items-center gap-2 px-3 py-2 text-left text-sm',
-                                        'bg-indigo-50 text-indigo-900 dark:bg-indigo-950/50 dark:text-indigo-200' => $selectedQuestionId === $question->id,
+                                        'bg-violet-50 text-violet-900 dark:bg-violet-950/50 dark:text-violet-200' => $selectedQuestionId === $question->id,
                                         'text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800/60' => $selectedQuestionId !== $question->id,
                                     ])
                                 >
@@ -656,7 +656,7 @@ new class extends Component {
                                         type="text"
                                         wire:model.blur="optionLabels.{{ $option->id }}"
                                         aria-label="{{ __('Option label') }}"
-                                        class="w-full flex-1 rounded-lg border-zinc-300 bg-white text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                                        class="w-full flex-1 rounded-lg border-zinc-300 bg-white text-sm shadow-sm focus:border-violet-500 focus:ring-violet-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
                                     />
 
                                     <flux:button variant="subtle" size="xs" icon="chevron-up" wire:click="moveOption({{ $option->id }}, -1)" :disabled="$loop->first" aria-label="{{ __('Move option up') }}" />

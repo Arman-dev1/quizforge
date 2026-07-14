@@ -75,7 +75,7 @@ new class extends Component {
                                 wire:key="type-{{ $quizType->value }}"
                                 @class([
                                     'flex items-start gap-3 rounded-xl border p-3 text-left transition',
-                                    'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500 dark:bg-indigo-950/40' => $selected === $quizType,
+                                    'border-violet-500 bg-violet-50 ring-1 ring-violet-500 dark:bg-violet-950/40' => $selected === $quizType,
                                     'border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:border-zinc-600 dark:hover:bg-zinc-800/60' => $selected !== $quizType,
                                 ])
                                 aria-pressed="{{ $selected === $quizType ? 'true' : 'false' }}"

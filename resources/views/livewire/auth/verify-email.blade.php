@@ -53,7 +53,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
         <button
             wire:click="logout"
             type="submit"
-            class="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            class="rounded-md text-sm text-zinc-600 underline hover:text-zinc-900 focus:outline-hidden focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 dark:text-zinc-400 dark:hover:text-zinc-200"
         >
             {{ __('Log out') }}
         </button>

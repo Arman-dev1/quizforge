@@ -1,6 +1,6 @@
-<div class="flex aspect-square size-8 items-center justify-center rounded-md bg-accent-content text-accent-foreground">
-    <x-app-logo-icon class="size-5 fill-current text-white dark:text-black" />
+<div class="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 shadow-sm">
+    <x-app-logo-icon class="size-4.5 text-white" />
 </div>
-<div class="ml-1 grid flex-1 text-left text-sm">
-    <span class="mb-0.5 truncate leading-none font-semibold">Laravel Starter Kit</span>
+<div class="ml-1.5 grid flex-1 text-left text-sm">
+    <span class="mb-0.5 truncate leading-none font-semibold tracking-tight text-zinc-900 dark:text-white">QuizForge</span>
 </div>
