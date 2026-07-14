@@ -163,11 +163,22 @@ new class extends Component {
         </form>
     @endif
 
-    <div class="mt-10 rounded-xl border border-dashed border-zinc-300 p-8 text-center dark:border-zinc-600">
-        <flux:icon.squares-plus class="mx-auto size-8 text-zinc-400" />
-        <flux:heading class="mt-3">{{ __('Question builder coming next') }}</flux:heading>
-        <flux:subheading class="mx-auto max-w-sm">
-            {{ __('Pages, questions, drag-and-drop, logic, and scoring will live here.') }}
-        </flux:subheading>
+    <div class="mt-10 flex items-center justify-between rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
+        <div>
+            <flux:heading>{{ __('Questions') }}</flux:heading>
+            <flux:subheading>
+                {{ trans_choice('{0}No questions yet — open the builder to add some.|{1}:count question across :pages :pageWord.|[2,*]:count questions across :pages :pageWord.', $quiz->questions()->count(), [
+                    'count' => $quiz->questions()->count(),
+                    'pages' => max($quiz->pages()->count(), 1),
+                    'pageWord' => trans_choice('page|pages', max($quiz->pages()->count(), 1)),
+                ]) }}
+            </flux:subheading>
+        </div>
+
+        @if ($canEdit)
+            <flux:button :href="route('quizzes.builder', $quiz)" wire:navigate variant="primary" icon="squares-plus">
+                {{ __('Open builder') }}
+            </flux:button>
+        @endif
     </div>
 </section>
