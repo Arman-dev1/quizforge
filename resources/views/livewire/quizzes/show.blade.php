@@ -1,5 +1,7 @@
 <?php
 
+use App\Actions\Quizzes\PublishQuiz;
+use App\Enums\QuizStatus;
 use App\Models\Quiz;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Volt\Component;
@@ -56,6 +58,34 @@ new class extends Component {
         $this->authorize('update', $this->quiz);
 
         $this->quiz->unarchive();
+    }
+
+    public function publish(PublishQuiz $publishQuiz): void
+    {
+        $this->authorize('update', $this->quiz);
+
+        $publishQuiz->handle($this->quiz, Auth::user());
+
+        $this->quiz->refresh();
+        $this->dispatch('quiz-published');
+    }
+
+    public function closeQuiz(): void
+    {
+        $this->authorize('update', $this->quiz);
+
+        if ($this->quiz->status === QuizStatus::Published) {
+            $this->quiz->update(['status' => QuizStatus::Closed]);
+        }
+    }
+
+    public function reopen(): void
+    {
+        $this->authorize('update', $this->quiz);
+
+        if ($this->quiz->status === QuizStatus::Closed && $this->quiz->versions()->exists()) {
+            $this->quiz->update(['status' => QuizStatus::Published]);
+        }
     }
 
     public function deleteQuiz(): void
@@ -164,6 +194,63 @@ new class extends Component {
                 </x-action-message>
             </div>
         </form>
+    @endif
+
+    @if ($canEdit)
+        <div class="mt-10 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <flux:heading>{{ __('Sharing') }}</flux:heading>
+                    <flux:subheading>
+                        @if ($quiz->status === QuizStatus::Published)
+                            {{ __('Live on version :version. Edits stay private until you republish.', ['version' => $quiz->latestVersion()?->version]) }}
+                        @elseif ($quiz->status === QuizStatus::Closed)
+                            {{ __('Closed — the public link shows a "no longer accepting responses" notice.') }}
+                        @else
+                            {{ __('Publish to get a public link you can share anywhere.') }}
+                        @endif
+                    </flux:subheading>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                    @if ($quiz->status === QuizStatus::Published)
+                        <flux:button wire:click="publish" variant="filled" icon="arrow-path">{{ __('Republish changes') }}</flux:button>
+                        <flux:button wire:click="closeQuiz" wire:confirm="{{ __('Stop accepting responses?') }}" variant="filled" icon="lock-closed">{{ __('Close') }}</flux:button>
+                    @elseif ($quiz->status === QuizStatus::Closed)
+                        <flux:button wire:click="reopen" variant="primary" icon="lock-open">{{ __('Reopen') }}</flux:button>
+                        <flux:button wire:click="publish" variant="filled" icon="arrow-path">{{ __('Republish changes') }}</flux:button>
+                    @elseif ($quiz->status === QuizStatus::Draft)
+                        <flux:button wire:click="publish" variant="primary" icon="globe-alt">{{ __('Publish') }}</flux:button>
+                    @endif
+
+                    <x-action-message on="quiz-published">{{ __('Published.') }}</x-action-message>
+                </div>
+            </div>
+
+            @error('publish')
+                <flux:text class="mt-3 text-sm text-red-600 dark:text-red-400">{{ $message }}</flux:text>
+            @enderror
+
+            @if (in_array($quiz->status, [QuizStatus::Published, QuizStatus::Closed], true))
+                <div class="mt-4 flex items-center gap-2" x-data="{ copied: false }">
+                    <input
+                        type="text"
+                        readonly
+                        value="{{ route('quiz.play', $quiz->slug) }}"
+                        class="w-full flex-1 rounded-lg border-zinc-300 bg-zinc-50 text-sm text-zinc-600 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                        aria-label="{{ __('Public quiz link') }}"
+                    />
+                    <flux:button
+                        variant="filled"
+                        icon="clipboard"
+                        x-on:click="navigator.clipboard.writeText('{{ route('quiz.play', $quiz->slug) }}'); copied = true; setTimeout(() => copied = false, 2000)"
+                    >
+                        <span x-show="! copied">{{ __('Copy') }}</span>
+                        <span x-show="copied" x-cloak>{{ __('Copied!') }}</span>
+                    </flux:button>
+                </div>
+            @endif
+        </div>
     @endif
 
     <div class="mt-10 flex items-center justify-between rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">

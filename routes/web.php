@@ -7,6 +7,10 @@ Route::get('/', function () {
     return view('welcome');
 })->name('home');
 
+Volt::route('q/{slug}', 'play')
+    ->middleware('throttle:60,1')
+    ->name('quiz.play');
+
 Volt::route('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])
     ->name('dashboard');

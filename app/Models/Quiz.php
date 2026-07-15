@@ -57,6 +57,21 @@ class Quiz extends Model
         return $this->hasMany(Question::class);
     }
 
+    public function versions(): HasMany
+    {
+        return $this->hasMany(QuizVersion::class);
+    }
+
+    public function responses(): HasMany
+    {
+        return $this->hasMany(QuizResponse::class);
+    }
+
+    public function latestVersion(): ?QuizVersion
+    {
+        return $this->versions()->latest('version')->first();
+    }
+
     public function isArchived(): bool
     {
         return $this->status === QuizStatus::Archived;
