@@ -28,7 +28,7 @@ new class extends Component {
             type="button"
             class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-zinc-200/60 dark:hover:bg-zinc-800"
         >
-            <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 text-sm font-semibold text-white">
+            <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-red-600 text-sm font-semibold text-white">
                 {{ str($current?->name ?? '?')->substr(0, 1)->upper() }}
             </span>
             <span class="grid flex-1 leading-tight">

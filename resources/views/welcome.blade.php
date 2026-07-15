@@ -29,16 +29,16 @@
         <main>
             {{-- Hero --}}
             <section class="relative mx-auto w-full max-w-6xl overflow-hidden px-6 pb-20 pt-16 text-center sm:pt-24">
-                <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 -top-24 mx-auto h-96 max-w-3xl rounded-full bg-gradient-to-br from-violet-500/25 to-indigo-500/10 blur-3xl"></div>
+                <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 -top-24 mx-auto h-96 max-w-3xl rounded-full bg-gradient-to-br from-orange-500/25 to-red-500/10 blur-3xl"></div>
 
-                <span class="relative inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700 dark:border-violet-800 dark:bg-violet-950/60 dark:text-violet-300">
+                <span class="relative inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-medium text-orange-700 dark:border-orange-800 dark:bg-orange-950/60 dark:text-orange-300">
                     <x-app-logo-icon class="size-3" />
                     {{ __('Quizzes, surveys, assessments & forms — one builder') }}
                 </span>
 
                 <h1 class="relative mx-auto mt-6 max-w-3xl text-balance text-4xl font-bold tracking-tight text-zinc-900 sm:text-6xl dark:text-white">
                     {{ __('Build quizzes people') }}
-                    <span class="bg-gradient-to-r from-violet-600 to-indigo-500 bg-clip-text text-transparent">{{ __('actually finish') }}</span>
+                    <span class="bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">{{ __('actually finish') }}</span>
                 </h1>
 
                 <p class="relative mx-auto mt-5 max-w-xl text-pretty text-lg text-zinc-600 dark:text-zinc-400">
@@ -66,9 +66,9 @@
                         ['icon' => 'users', 'title' => __('Built for teams'), 'text' => __('Workspaces with roles and permissions, from solo creators to whole departments.')],
                         ['icon' => 'bolt', 'title' => __('Fast everywhere'), 'text' => __('Lightweight quiz pages that load in under a second on any device.')],
                     ] as $feature)
-                        <div class="rounded-2xl border border-zinc-200 bg-white p-6 transition hover:border-violet-300 hover:shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-violet-900">
-                            <span class="flex size-10 items-center justify-center rounded-xl bg-violet-50 dark:bg-violet-950/60">
-                                <flux:icon :icon="$feature['icon']" class="size-5 text-violet-600 dark:text-violet-400" />
+                        <div class="rounded-2xl border border-zinc-200 bg-white p-6 transition hover:border-orange-300 hover:shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-orange-900">
+                            <span class="flex size-10 items-center justify-center rounded-xl bg-orange-50 dark:bg-orange-950/60">
+                                <flux:icon :icon="$feature['icon']" class="size-5 text-orange-600 dark:text-orange-400" />
                             </span>
                             <h2 class="mt-4 text-sm font-semibold text-zinc-900 dark:text-white">{{ $feature['title'] }}</h2>
                             <p class="mt-1.5 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">{{ $feature['text'] }}</p>

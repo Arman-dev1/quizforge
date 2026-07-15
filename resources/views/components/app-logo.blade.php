@@ -1,4 +1,4 @@
-<div class="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 shadow-sm">
+<div class="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-red-600 shadow-sm">
     <x-app-logo-icon class="size-4.5 text-white" />
 </div>
 <div class="ml-1.5 grid flex-1 text-left text-sm">

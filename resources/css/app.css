@@ -12,33 +12,34 @@
     --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 
     /*
-     | QuizForge neutrals — the app was scaffolded with zinc-* utility classes,
-     | so we point the zinc scale at slate values: a cooler, richer neutral that
-     | pairs with the violet brand color and gives dark mode a blue-black depth.
+     | QuizForge "Ember & Stone" neutrals — the app was scaffolded with zinc-*
+     | utility classes, so we point the zinc scale at stone values: warm
+     | bone/oatmeal grays in light mode and smoky, coffee-black dark surfaces.
      */
-    --color-zinc-50: #f8fafc;
-    --color-zinc-100: #f1f5f9;
-    --color-zinc-200: #e2e8f0;
-    --color-zinc-300: #cbd5e1;
-    --color-zinc-400: #94a3b8;
-    --color-zinc-500: #64748b;
-    --color-zinc-600: #475569;
-    --color-zinc-700: #334155;
-    --color-zinc-800: #1e293b;
-    --color-zinc-900: #0f172a;
-    --color-zinc-950: #020617;
+    --color-zinc-50: #fafaf9;
+    --color-zinc-100: #f5f5f4;
+    --color-zinc-200: #e7e5e4;
+    --color-zinc-300: #d6d3d1;
+    --color-zinc-400: #a8a29e;
+    --color-zinc-500: #78716c;
+    --color-zinc-600: #57534e;
+    --color-zinc-700: #44403c;
+    --color-zinc-800: #292524;
+    --color-zinc-900: #1c1917;
+    --color-zinc-950: #0c0a09;
 
-    /* Brand accent — violet, WCAG AA on white at 600 */
-    --color-accent: var(--color-violet-600);
-    --color-accent-content: var(--color-violet-600);
+    /* Brand accent — burnt copper/flame, WCAG AA on white at orange-700 */
+    --color-accent: var(--color-orange-700);
+    --color-accent-content: var(--color-orange-700);
     --color-accent-foreground: var(--color-white);
 }
 
 @layer theme {
     .dark {
-        --color-accent: var(--color-violet-500);
-        --color-accent-content: var(--color-violet-400);
-        --color-accent-foreground: var(--color-white);
+        /* Amber ember on smoky black; dark foreground keeps button text readable */
+        --color-accent: var(--color-orange-400);
+        --color-accent-content: var(--color-orange-400);
+        --color-accent-foreground: var(--color-orange-950);
     }
 }
 
@@ -53,12 +54,12 @@
     }
 
     ::selection {
-        background-color: var(--color-violet-200);
-        color: var(--color-violet-950);
+        background-color: var(--color-orange-200);
+        color: var(--color-orange-950);
     }
 
     .dark ::selection {
-        background-color: var(--color-violet-700);
+        background-color: var(--color-orange-800);
         color: var(--color-white);
     }
 }

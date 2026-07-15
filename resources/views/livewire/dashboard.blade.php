@@ -62,8 +62,8 @@ new class extends Component {
             <div class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
                 <div class="flex items-center justify-between">
                     <p class="text-sm font-medium text-zinc-500 dark:text-zinc-400">{{ $stat['label'] }}</p>
-                    <span class="flex size-8 items-center justify-center rounded-lg bg-violet-50 dark:bg-violet-950/60">
-                        <flux:icon :icon="$stat['icon']" class="size-4 text-violet-600 dark:text-violet-400" />
+                    <span class="flex size-8 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-950/60">
+                        <flux:icon :icon="$stat['icon']" class="size-4 text-orange-600 dark:text-orange-400" />
                     </span>
                 </div>
                 <p class="mt-2 text-3xl font-semibold tracking-tight text-zinc-900 dark:text-white">{{ $stat['value'] }}</p>
@@ -127,9 +127,9 @@ new class extends Component {
                     ['route' => route('settings.members'), 'icon' => 'user-plus', 'title' => __('Invite your team'), 'text' => __('Collaborate in this workspace')],
                     ['route' => route('settings.workspace'), 'icon' => 'cog-6-tooth', 'title' => __('Workspace settings'), 'text' => __('Name, members, and more')],
                 ] as $action)
-                    <a href="{{ $action['route'] }}" wire:navigate class="flex items-center gap-3 rounded-xl border border-zinc-200 p-3 transition hover:border-violet-300 hover:bg-violet-50/50 dark:border-zinc-700 dark:hover:border-violet-800 dark:hover:bg-violet-950/30">
-                        <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-violet-50 dark:bg-violet-950/60">
-                            <flux:icon :icon="$action['icon']" class="size-4.5 text-violet-600 dark:text-violet-400" />
+                    <a href="{{ $action['route'] }}" wire:navigate class="flex items-center gap-3 rounded-xl border border-zinc-200 p-3 transition hover:border-orange-300 hover:bg-orange-50/50 dark:border-zinc-700 dark:hover:border-orange-800 dark:hover:bg-orange-950/30">
+                        <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-950/60">
+                            <flux:icon :icon="$action['icon']" class="size-4.5 text-orange-600 dark:text-orange-400" />
                         </span>
                         <span class="min-w-0">
                             <span class="block text-sm font-medium text-zinc-800 dark:text-white">{{ $action['title'] }}</span>
