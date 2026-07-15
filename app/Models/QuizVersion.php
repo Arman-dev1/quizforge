@@ -42,4 +42,22 @@ class QuizVersion extends Model
     {
         return $this->content['pages'] ?? [];
     }
+
+    /**
+     * All snapshot questions in page order, keyed by question id.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function questionsById(): array
+    {
+        $questions = [];
+
+        foreach ($this->pages() as $page) {
+            foreach ($page['questions'] ?? [] as $question) {
+                $questions[(int) $question['id']] = $question;
+            }
+        }
+
+        return $questions;
+    }
 }

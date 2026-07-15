@@ -8,11 +8,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class QuizResponse extends Model
 {
     /** @use HasFactory<QuizResponseFactory> */
-    use BelongsToWorkspace, HasFactory;
+    use BelongsToWorkspace, HasFactory, SoftDeletes;
 
     public const STATUS_IN_PROGRESS = 'in_progress';
 
@@ -29,6 +30,7 @@ class QuizResponse extends Model
         'completed_at',
         'user_agent',
         'meta',
+        'notes',
         'score',
         'max_score',
         'percentage',

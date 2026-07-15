@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ResponseExportController;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
@@ -32,6 +33,12 @@ Route::middleware(['auth'])->group(function () {
     Volt::route('quizzes/{quiz}', 'quizzes.show')->name('quizzes.show');
     Volt::route('quizzes/{quiz}/builder', 'quizzes.builder')->name('quizzes.builder');
     Volt::route('quizzes/{quiz}/preview', 'quizzes.preview')->name('quizzes.preview');
+
+    Volt::route('quizzes/{quiz}/responses', 'quizzes.responses')->name('quizzes.responses');
+    Route::get('quizzes/{quiz}/responses/export', ResponseExportController::class)->name('quizzes.responses.export');
+    Volt::route('quizzes/{quiz}/responses/{response}', 'quizzes.response-detail')->name('quizzes.responses.show');
+
+    Volt::route('leads', 'leads.index')->name('leads.index');
 });
 
 require __DIR__.'/auth.php';

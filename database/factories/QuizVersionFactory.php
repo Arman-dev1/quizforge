@@ -15,7 +15,7 @@ class QuizVersionFactory extends Factory
     {
         return [
             'quiz_id' => Quiz::factory(),
-            'version' => 1,
+            'version' => fn (array $attributes) => ((int) QuizVersion::where('quiz_id', $attributes['quiz_id'])->max('version')) + 1,
             'content' => ['pages' => []],
         ];
     }

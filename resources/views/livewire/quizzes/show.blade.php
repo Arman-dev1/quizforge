@@ -193,6 +193,12 @@ new class extends Component {
 
         <div class="flex flex-wrap items-center gap-2">
             <flux:button href="{{ route('quizzes.preview', $quiz) }}" target="_blank" variant="filled" icon="eye">{{ __('Preview') }}</flux:button>
+            <flux:button :href="route('quizzes.responses', $quiz)" wire:navigate variant="filled" icon="inbox">
+                {{ __('Responses') }}
+                @if (($responseCount = $quiz->responses()->count()) > 0)
+                    <span class="ml-1 rounded-full bg-zinc-200 px-1.5 text-xs font-semibold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">{{ $responseCount }}</span>
+                @endif
+            </flux:button>
 
             @if ($canEdit)
                 <flux:button :href="route('quizzes.builder', $quiz)" wire:navigate variant="primary" icon="squares-plus">{{ __('Open builder') }}</flux:button>
