@@ -4,6 +4,7 @@ use App\Enums\QuestionType;
 use App\Models\Question;
 use App\Models\Quiz;
 use App\Models\QuizPage;
+use Illuminate\Support\Facades\DB;
 use Livewire\Volt\Component;
 
 new class extends Component {
@@ -101,6 +102,175 @@ new class extends Component {
     protected function syncOptionLabels(Question $question): void
     {
         $this->optionLabels = $question->options()->pluck('label', 'id')->all();
+    }
+
+    // ── Undo / redo ────────────────────────────────────────────
+
+    protected function historyKey(): string
+    {
+        return 'builder.history.'.$this->quiz->id;
+    }
+
+    /**
+     * Record the current content state before a structural mutation.
+     * Text autosaves are deliberately excluded — browsers already
+     * provide native undo inside inputs.
+     */
+    protected function pushHistory(): void
+    {
+        $undo = session($this->historyKey().'.undo', []);
+        $undo[] = $this->contentSnapshot();
+
+        session()->put($this->historyKey().'.undo', array_slice($undo, -30));
+        session()->forget($this->historyKey().'.redo');
+    }
+
+    protected function contentSnapshot(): array
+    {
+        return $this->quiz->pages()->with('questions.options')->get()->map(fn (QuizPage $page) => [
+            'title' => $page->title,
+            'description' => $page->description,
+            'position' => $page->position,
+            'questions' => $page->questions->map(fn (Question $question) => [
+                ...$question->only(['title', 'description', 'placeholder', 'help_text', 'is_required', 'is_hidden', 'position', 'settings', 'validation']),
+                'type' => $question->type->value,
+                'options' => $question->options->map(
+                    fn ($option) => $option->only(['label', 'is_correct', 'position', 'settings'])
+                )->all(),
+            ])->all(),
+        ])->all();
+    }
+
+    protected function restoreSnapshot(array $pages): void
+    {
+        DB::transaction(function () use ($pages) {
+            $this->quiz->pages()->delete();
+
+            foreach ($pages as $pageData) {
+                $page = $this->quiz->pages()->create(collect($pageData)->except('questions')->all());
+
+                foreach ($pageData['questions'] ?? [] as $questionData) {
+                    $question = $page->questions()->create([
+                        ...collect($questionData)->except('options')->all(),
+                        'quiz_id' => $this->quiz->id,
+                    ]);
+
+                    foreach ($questionData['options'] ?? [] as $optionData) {
+                        $question->options()->create($optionData);
+                    }
+                }
+            }
+        });
+
+        $this->clearSelection();
+        $this->pickingForPageId = null;
+        $this->quiz->refresh();
+        $this->syncPageTitles();
+    }
+
+    public function undo(): void
+    {
+        $undo = session($this->historyKey().'.undo', []);
+
+        if ($undo === []) {
+            return;
+        }
+
+        $state = array_pop($undo);
+
+        $redo = session($this->historyKey().'.redo', []);
+        $redo[] = $this->contentSnapshot();
+
+        session()->put($this->historyKey().'.undo', $undo);
+        session()->put($this->historyKey().'.redo', array_slice($redo, -30));
+
+        $this->restoreSnapshot($state);
+    }
+
+    public function redo(): void
+    {
+        $redo = session($this->historyKey().'.redo', []);
+
+        if ($redo === []) {
+            return;
+        }
+
+        $state = array_pop($redo);
+
+        $undo = session($this->historyKey().'.undo', []);
+        $undo[] = $this->contentSnapshot();
+
+        session()->put($this->historyKey().'.redo', $redo);
+        session()->put($this->historyKey().'.undo', array_slice($undo, -30));
+
+        $this->restoreSnapshot($state);
+    }
+
+    // ── Drag & drop ────────────────────────────────────────────
+
+    public function sortPage(int $pageId, ?string $target, int $position): void
+    {
+        $page = $this->quiz->pages()->findOrFail($pageId);
+
+        $this->pushHistory();
+
+        $pages = $this->quiz->pages()->where('id', '!=', $page->id)->get()->values();
+        $pages->splice(min($position, $pages->count()), 0, [$page]);
+
+        $pages->values()->each(function (QuizPage $sibling, int $index) {
+            if ($sibling->position !== $index) {
+                $sibling->update(['position' => $index]);
+            }
+        });
+
+        $this->syncPageTitles();
+    }
+
+    public function sortQuestion(int $questionId, ?string $target, int $position): void
+    {
+        $question = $this->quiz->questions()->findOrFail($questionId);
+        $targetPage = $this->quiz->pages()->findOrFail((int) $target);
+
+        $this->pushHistory();
+
+        $sourcePage = $question->page;
+
+        if ($sourcePage->id !== $targetPage->id) {
+            $question->update(['quiz_page_id' => $targetPage->id]);
+            $this->reindexQuestions($sourcePage);
+            $question->refresh();
+        }
+
+        $siblings = $targetPage->questions()->where('id', '!=', $question->id)->get()->values();
+        $siblings->splice(min($position, $siblings->count()), 0, [$question]);
+
+        $siblings->values()->each(function (Question $sibling, int $index) {
+            if ($sibling->position !== $index) {
+                $sibling->update(['position' => $index]);
+            }
+        });
+    }
+
+    public function sortOption(int $optionId, ?string $target, int $position): void
+    {
+        $question = $this->selectedQuestion();
+
+        if (! $question) {
+            return;
+        }
+
+        $option = $question->options()->findOrFail($optionId);
+
+        $this->pushHistory();
+
+        $options = $question->options()->where('id', '!=', $option->id)->get()->values();
+        $options->splice(min($position, $options->count()), 0, [$option]);
+
+        $options->values()->each(function ($sibling, int $index) {
+            if ($sibling->position !== $index) {
+                $sibling->update(['position' => $index]);
+            }
+        });
     }
 
     // ── Autosave ───────────────────────────────────────────────
@@ -221,6 +391,8 @@ new class extends Component {
 
     public function addPage(): void
     {
+        $this->pushHistory();
+
         $count = $this->quiz->pages()->count();
 
         $this->quiz->pages()->create([
@@ -240,6 +412,8 @@ new class extends Component {
 
             return;
         }
+
+        $this->pushHistory();
 
         $selected = $this->selectedQuestion();
 
@@ -261,6 +435,8 @@ new class extends Component {
         $neighbor = $index === false ? null : ($pages[$index + $direction] ?? null);
 
         if ($neighbor) {
+            $this->pushHistory();
+
             $pages[$index]->update(['position' => $neighbor->position]);
             $neighbor->update(['position' => $index]);
             $this->reindexPages();
@@ -296,6 +472,8 @@ new class extends Component {
         $questionType = QuestionType::from($type);
         $page = $this->quiz->pages()->findOrFail($this->pickingForPageId);
 
+        $this->pushHistory();
+
         $question = $page->questions()->create([
             'quiz_id' => $this->quiz->id,
             'type' => $questionType,
@@ -316,6 +494,8 @@ new class extends Component {
     {
         $question = $this->quiz->questions()->findOrFail($questionId);
 
+        $this->pushHistory();
+
         $copy = $question->duplicate();
 
         $this->reindexQuestions($question->page);
@@ -326,6 +506,8 @@ new class extends Component {
     {
         $question = $this->quiz->questions()->findOrFail($questionId);
         $page = $question->page;
+
+        $this->pushHistory();
 
         if ($this->selectedQuestionId === $question->id) {
             $this->clearSelection();
@@ -345,6 +527,8 @@ new class extends Component {
         $neighbor = $index === false ? null : ($siblings[$index + $direction] ?? null);
 
         if ($neighbor) {
+            $this->pushHistory();
+
             $siblings[$index]->update(['position' => $neighbor->position]);
             $neighbor->update(['position' => $index]);
             $this->reindexQuestions($question->page);
@@ -370,6 +554,8 @@ new class extends Component {
             return;
         }
 
+        $this->pushHistory();
+
         $question->options()->create([
             'label' => __('Option :number', ['number' => $question->options()->count() + 1]),
             'position' => $question->options()->count(),
@@ -391,6 +577,8 @@ new class extends Component {
 
             return;
         }
+
+        $this->pushHistory();
 
         $question->options()->findOrFail($optionId)->delete();
 
@@ -416,6 +604,8 @@ new class extends Component {
         $neighbor = $index === false ? null : ($options[$index + $direction] ?? null);
 
         if ($neighbor) {
+            $this->pushHistory();
+
             $options[$index]->update(['position' => $neighbor->position]);
             $neighbor->update(['position' => $index]);
         }
@@ -430,6 +620,8 @@ new class extends Component {
         }
 
         $option = $question->options()->findOrFail($optionId);
+
+        $this->pushHistory();
 
         if ($question->type === QuestionType::MultipleChoice) {
             $option->update(['is_correct' => ! $option->is_correct]);
@@ -449,11 +641,22 @@ new class extends Component {
             'pages' => $this->quiz->pages()->with('questions.options')->get(),
             'selected' => $this->selectedQuestion(),
             'typeGroups' => QuestionType::grouped(),
+            'canUndo' => session($this->historyKey().'.undo', []) !== [],
+            'canRedo' => session($this->historyKey().'.redo', []) !== [],
         ];
     }
 }; ?>
 
-<section class="flex w-full flex-col gap-6 lg:flex-row">
+<section
+    class="flex w-full flex-col gap-6 lg:flex-row"
+    x-data
+    x-on:keydown.window="
+        if (($event.ctrlKey || $event.metaKey) && $event.key.toLowerCase() === 'z' && !['INPUT', 'TEXTAREA', 'SELECT'].includes($event.target.tagName)) {
+            $event.preventDefault();
+            $event.shiftKey ? $wire.redo() : $wire.undo();
+        }
+    "
+>
     {{-- Structure panel --}}
     <aside class="w-full shrink-0 lg:w-80">
         <div class="mb-4 flex items-center justify-between gap-2">
@@ -470,14 +673,28 @@ new class extends Component {
             </x-action-message>
         </div>
 
+        <div class="mb-4 flex items-center gap-1">
+            <flux:button variant="subtle" size="sm" icon="arrow-uturn-left" wire:click="undo" :disabled="! $canUndo" aria-label="{{ __('Undo') }}" title="{{ __('Undo (Ctrl+Z)') }}" />
+            <flux:button variant="subtle" size="sm" icon="arrow-uturn-right" wire:click="redo" :disabled="! $canRedo" aria-label="{{ __('Redo') }}" title="{{ __('Redo (Ctrl+Shift+Z)') }}" />
+
+            <flux:spacer />
+
+            <flux:button variant="filled" size="sm" icon="eye" href="{{ route('quizzes.preview', $quiz) }}" target="_blank">
+                {{ __('Preview') }}
+            </flux:button>
+        </div>
+
         @error('builder')
             <flux:text class="mb-3 text-sm text-red-600 dark:text-red-400">{{ $message }}</flux:text>
         @enderror
 
-        <div class="space-y-4">
+        <div class="space-y-4" x-sortable data-sort-method="sortPage">
             @foreach ($pages as $page)
-                <div class="rounded-xl border border-zinc-200 dark:border-zinc-700" wire:key="page-{{ $page->id }}">
+                <div class="rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900" wire:key="page-{{ $page->id }}" data-sort-id="{{ $page->id }}">
                     <div class="flex items-center gap-1 border-b border-zinc-200 p-2 dark:border-zinc-700">
+                        <span data-sort-handle class="p-1 text-zinc-400" aria-hidden="true">
+                            <flux:icon.bars-2 class="size-4" />
+                        </span>
                         <input
                             type="text"
                             wire:model.blur="pageTitles.{{ $page->id }}"
@@ -498,14 +715,23 @@ new class extends Component {
                         />
                     </div>
 
-                    <ul>
+                    <ul
+                        class="min-h-2"
+                        x-sortable
+                        data-sort-group="questions"
+                        data-sort-method="sortQuestion"
+                        data-sort-target="{{ $page->id }}"
+                    >
                         @foreach ($page->questions as $question)
-                            <li wire:key="question-{{ $question->id }}">
+                            <li wire:key="question-{{ $question->id }}" data-sort-id="{{ $question->id }}" class="flex items-center">
+                                <span data-sort-handle class="pl-2 text-zinc-300 dark:text-zinc-600" aria-hidden="true">
+                                    <flux:icon.bars-2 class="size-3.5" />
+                                </span>
                                 <button
                                     type="button"
                                     wire:click="selectQuestion({{ $question->id }})"
                                     @class([
-                                        'flex w-full items-center gap-2 px-3 py-2 text-left text-sm',
+                                        'flex min-w-0 flex-1 items-center gap-2 px-2 py-2 text-left text-sm',
                                         'bg-orange-50 text-orange-900 dark:bg-orange-950/50 dark:text-orange-200' => $selectedQuestionId === $question->id,
                                         'text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800/60' => $selectedQuestionId !== $question->id,
                                     ])
@@ -639,9 +865,12 @@ new class extends Component {
                             <flux:text class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</flux:text>
                         @enderror
 
-                        <ul class="mt-3 space-y-2">
+                        <ul class="mt-3 space-y-2" x-sortable data-sort-method="sortOption">
                             @foreach ($selected->options as $option)
-                                <li class="flex items-center gap-2" wire:key="option-{{ $option->id }}">
+                                <li class="flex items-center gap-2" wire:key="option-{{ $option->id }}" data-sort-id="{{ $option->id }}">
+                                    <span data-sort-handle class="text-zinc-300 dark:text-zinc-600" aria-hidden="true">
+                                        <flux:icon.bars-2 class="size-4" />
+                                    </span>
                                     @if ($selected->type->supportsCorrectAnswers())
                                         <input
                                             type="checkbox"

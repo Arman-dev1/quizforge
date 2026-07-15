@@ -27,6 +27,7 @@ Route::middleware(['auth'])->group(function () {
     Volt::route('quizzes/create', 'quizzes.create')->name('quizzes.create');
     Volt::route('quizzes/{quiz}', 'quizzes.show')->name('quizzes.show');
     Volt::route('quizzes/{quiz}/builder', 'quizzes.builder')->name('quizzes.builder');
+    Volt::route('quizzes/{quiz}/preview', 'quizzes.preview')->name('quizzes.preview');
 });
 
 require __DIR__.'/auth.php';

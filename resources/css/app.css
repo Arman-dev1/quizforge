@@ -64,6 +64,14 @@
     }
 }
 
+.sortable-ghost {
+    @apply opacity-40;
+}
+
+[data-sort-handle] {
+    @apply cursor-grab active:cursor-grabbing;
+}
+
 [data-flux-field] {
     @apply grid gap-2;
 }

@@ -97,8 +97,11 @@ new class extends Component {
             </flux:subheading>
         </div>
 
-        @if ($canEdit)
-            <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
+            <flux:button href="{{ route('quizzes.preview', $quiz) }}" target="_blank" variant="filled" icon="eye">{{ __('Preview') }}</flux:button>
+
+            @if ($canEdit)
+                <flux:button :href="route('quizzes.builder', $quiz)" wire:navigate variant="primary" icon="squares-plus">{{ __('Open builder') }}</flux:button>
                 <flux:button wire:click="duplicate" variant="filled" icon="document-duplicate">{{ __('Duplicate') }}</flux:button>
 
                 @if ($quiz->isArchived())
@@ -121,8 +124,8 @@ new class extends Component {
                         {{ __('Archive') }}
                     </flux:button>
                 @endif
-            </div>
-        @endif
+            @endif
+        </div>
     </div>
 
     @error('actions')
