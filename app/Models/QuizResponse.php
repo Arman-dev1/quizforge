@@ -29,6 +29,11 @@ class QuizResponse extends Model
         'completed_at',
         'user_agent',
         'meta',
+        'score',
+        'max_score',
+        'percentage',
+        'passed',
+        'grade',
     ];
 
     protected function casts(): array
@@ -37,6 +42,8 @@ class QuizResponse extends Model
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
             'meta' => 'array',
+            'percentage' => 'float',
+            'passed' => 'boolean',
         ];
     }
 

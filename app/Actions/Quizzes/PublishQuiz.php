@@ -62,6 +62,7 @@ class PublishQuiz
                     'is_required' => $question->is_required,
                     'settings' => $question->settings ?? [],
                     'validation' => $question->validation ?? [],
+                    'logic' => $question->logic,
                     'options' => $question->options->map(fn ($option) => [
                         'id' => $option->id,
                         'label' => $option->label,
@@ -71,7 +72,39 @@ class PublishQuiz
             ])
             ->all();
 
-        return ['pages' => $pages];
+        return ['pages' => $this->pruneDanglingLogic($pages)];
+    }
+
+    /**
+     * Drop logic conditions whose trigger question is not part of this
+     * snapshot (deleted or hidden), so rules can never dangle at runtime.
+     */
+    protected function pruneDanglingLogic(array $pages): array
+    {
+        $questionIds = collect($pages)
+            ->flatMap(fn (array $page) => array_column($page['questions'], 'id'))
+            ->all();
+
+        foreach ($pages as &$page) {
+            foreach ($page['questions'] as &$question) {
+                if (empty($question['logic']['conditions'])) {
+                    $question['logic'] = null;
+
+                    continue;
+                }
+
+                $conditions = array_values(array_filter(
+                    $question['logic']['conditions'],
+                    fn (array $condition) => in_array((int) ($condition['question_id'] ?? 0), $questionIds, true),
+                ));
+
+                $question['logic'] = $conditions === []
+                    ? null
+                    : ['match' => $question['logic']['match'] ?? 'all', 'conditions' => $conditions];
+            }
+        }
+
+        return $pages;
     }
 
     protected function validateContent(array $content): void

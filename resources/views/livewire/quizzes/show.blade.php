@@ -18,6 +18,8 @@ new class extends Component {
         $this->quiz = $quiz;
         $this->name = $quiz->name;
         $this->description = $quiz->description ?? '';
+
+        $this->loadResultSettings();
     }
 
     public function updateDetails(): void
@@ -58,6 +60,68 @@ new class extends Component {
         $this->authorize('update', $this->quiz);
 
         $this->quiz->unarchive();
+    }
+
+    public bool $resultScored = false;
+    public bool $resultShowScore = true;
+    public string $resultPassPercentage = '';
+    public string $resultGrades = '';
+    public string $resultMessage = '';
+    public string $resultRedirect = '';
+
+    public function loadResultSettings(): void
+    {
+        $settings = $this->quiz->settings ?? [];
+        $results = $settings['results'] ?? [];
+
+        $this->resultScored = (bool) ($settings['scored'] ?? false);
+        $this->resultShowScore = (bool) ($results['show_score'] ?? true);
+        $this->resultPassPercentage = (string) ($results['pass_percentage'] ?? '');
+        $this->resultGrades = collect($results['grades'] ?? [])
+            ->map(fn (array $band) => $band['min'].':'.$band['label'])
+            ->implode("\n");
+        $this->resultMessage = (string) ($results['thank_you_message'] ?? '');
+        $this->resultRedirect = (string) ($results['redirect_url'] ?? '');
+    }
+
+    public function saveResults(): void
+    {
+        $this->authorize('update', $this->quiz);
+
+        $validated = $this->validate([
+            'resultPassPercentage' => ['nullable', 'numeric', 'between:0,100'],
+            'resultMessage' => ['nullable', 'string', 'max:2000'],
+            'resultRedirect' => ['nullable', 'url', 'max:500'],
+        ]);
+
+        $grades = collect(explode("\n", $this->resultGrades))
+            ->map(fn (string $line) => trim($line))
+            ->filter(fn (string $line) => $line !== '')
+            ->map(function (string $line) {
+                [$min, $label] = array_pad(explode(':', $line, 2), 2, '');
+
+                return is_numeric(trim($min)) && trim($label) !== ''
+                    ? ['min' => (float) trim($min), 'label' => mb_substr(trim($label), 0, 100)]
+                    : null;
+            })
+            ->filter()
+            ->values()
+            ->all();
+
+        $settings = $this->quiz->settings ?? [];
+        $settings['scored'] = $this->resultScored;
+        $settings['results'] = [
+            'show_score' => $this->resultShowScore,
+            'pass_percentage' => $this->resultPassPercentage === '' ? null : (float) $this->resultPassPercentage,
+            'grades' => $grades,
+            'thank_you_message' => trim($this->resultMessage) ?: null,
+            'redirect_url' => trim($this->resultRedirect) ?: null,
+        ];
+
+        $this->quiz->update(['settings' => $settings]);
+
+        $this->loadResultSettings();
+        $this->dispatch('results-saved');
     }
 
     public function publish(PublishQuiz $publishQuiz): void
@@ -250,6 +314,63 @@ new class extends Component {
                     </flux:button>
                 </div>
             @endif
+        </div>
+    @endif
+
+    @if ($canEdit)
+        <div class="mt-10 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
+            <flux:heading>{{ __('Scoring & results') }}</flux:heading>
+            <flux:subheading>{{ __('Grade responses and control what respondents see when they finish.') }}</flux:subheading>
+
+            <form wire:submit="saveResults" class="mt-5 max-w-lg space-y-5">
+                <div class="flex items-center gap-6">
+                    <flux:checkbox wire:model.live="resultScored" label="{{ __('Score this quiz') }}" />
+                    @if ($resultScored)
+                        <flux:checkbox wire:model="resultShowScore" label="{{ __('Show score to respondents') }}" />
+                    @endif
+                </div>
+
+                @if ($resultScored)
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <flux:input
+                            wire:model="resultPassPercentage"
+                            label="{{ __('Pass mark (%)') }}"
+                            type="number"
+                            min="0"
+                            max="100"
+                            placeholder="{{ __('e.g. 60 — empty for none') }}"
+                        />
+
+                        <flux:textarea
+                            wire:model="resultGrades"
+                            label="{{ __('Grade bands (min%:Label)') }}"
+                            rows="3"
+                            placeholder="80:Excellent&#10;50:Good&#10;0:Keep practicing"
+                        />
+                    </div>
+                @endif
+
+                <flux:textarea
+                    wire:model="resultMessage"
+                    label="{{ __('Thank-you message') }}"
+                    rows="2"
+                    placeholder="{{ __('Shown after submitting (optional)') }}"
+                />
+
+                <flux:input
+                    wire:model="resultRedirect"
+                    label="{{ __('Redirect URL') }}"
+                    type="url"
+                    placeholder="https://example.com/thanks"
+                    description="{{ __('Respondents get a button to continue to this link (optional).') }}"
+                />
+
+                <div class="flex items-center gap-4">
+                    <flux:button variant="primary" type="submit">{{ __('Save results') }}</flux:button>
+
+                    <x-action-message on="results-saved">{{ __('Saved.') }}</x-action-message>
+                </div>
+            </form>
         </div>
     @endif
 

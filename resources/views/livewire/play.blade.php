@@ -5,7 +5,10 @@ use App\Enums\QuizStatus;
 use App\Models\Quiz;
 use App\Models\QuizResponse;
 use App\Models\QuizVersion;
+use App\Services\Logic\LogicEngine;
 use App\Services\Player\AnswerValidator;
+use App\Services\Scoring\ResultResolver;
+use App\Services\Scoring\ScoringEngine;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -19,6 +22,9 @@ new #[Layout('components.layouts.player')] class extends Component {
 
     /** @var array<int|string, mixed> answers keyed by question id */
     public array $answers = [];
+
+    /** Respondent-facing result data set at completion. */
+    public array $outcome = [];
 
     protected ?Quiz $cachedQuiz = null;
     protected ?QuizVersion $cachedVersion = null;
@@ -152,18 +158,16 @@ new #[Layout('components.layouts.player')] class extends Component {
             return;
         }
 
-        $validator->validate($page['questions'], $this->answers);
+        $visible = app(LogicEngine::class)->visibleQuestions($page['questions'], $this->answers);
+
+        $validator->validate($visible, $this->answers);
 
         $response = $this->ensureResponse();
 
-        $this->storeAnswers($response, $page['questions']);
+        $this->storeAnswers($response, $visible);
 
         if ($this->step >= count($pages) - 1) {
-            $response->update([
-                'status' => QuizResponse::STATUS_COMPLETED,
-                'completed_at' => now(),
-                'current_page' => $this->step,
-            ]);
+            $this->finalizeResponse($response);
 
             session()->forget($this->sessionKey());
 
@@ -182,6 +186,51 @@ new #[Layout('components.layouts.player')] class extends Component {
         if (! $this->closed && ! $this->completed && $this->step > 0) {
             $this->step--;
         }
+    }
+
+    /**
+     * Score (if enabled), resolve the configured outcome, and stamp the
+     * result onto the response so later phases never recompute it.
+     */
+    protected function finalizeResponse(QuizResponse $response): void
+    {
+        $quiz = $this->quiz();
+        $logicEngine = app(LogicEngine::class);
+        $scoreResult = null;
+
+        if ($quiz->settings['scored'] ?? false) {
+            $visiblePages = array_map(fn (array $page) => [
+                'questions' => $logicEngine->visibleQuestions($page['questions'] ?? [], $this->answers),
+            ], $this->pages());
+
+            $scoreResult = app(ScoringEngine::class)->score($visiblePages, $this->answers);
+        }
+
+        $resolved = app(ResultResolver::class)->resolve($quiz->settings ?? [], $scoreResult);
+
+        $response->update([
+            'status' => QuizResponse::STATUS_COMPLETED,
+            'completed_at' => now(),
+            'current_page' => $this->step,
+            'score' => $scoreResult?->points,
+            'max_score' => $scoreResult?->maxPoints,
+            'percentage' => $scoreResult?->percentage,
+            'passed' => $resolved->passed,
+            'grade' => $resolved->grade,
+        ]);
+
+        $this->outcome = [
+            'show_score' => $resolved->showScore && $scoreResult !== null && $scoreResult->maxPoints > 0,
+            'points' => $scoreResult?->points,
+            'max' => $scoreResult?->maxPoints,
+            'percentage' => $scoreResult?->percentage,
+            'correct' => $scoreResult?->correctCount,
+            'scored_questions' => $scoreResult?->scoredCount,
+            'passed' => $resolved->passed,
+            'grade' => $resolved->grade,
+            'message' => $resolved->message,
+            'redirect' => $resolved->redirectUrl,
+        ];
     }
 
     protected function storeAnswers(QuizResponse $response, array $questions): void
@@ -208,9 +257,15 @@ new #[Layout('components.layouts.player')] class extends Component {
         $pages = $this->pages();
         $this->step = max(0, min($this->step, max(count($pages) - 1, 0)));
 
+        $page = $this->closed || $this->completed ? null : ($pages[$this->step] ?? null);
+
+        if ($page !== null) {
+            $page['questions'] = app(LogicEngine::class)->visibleQuestions($page['questions'] ?? [], $this->answers);
+        }
+
         return [
             'quiz' => $this->quiz(),
-            'page' => $this->closed || $this->completed ? null : ($pages[$this->step] ?? null),
+            'page' => $page,
             'total' => count($pages),
             'progress' => count($pages) > 0 ? (int) round((($this->step + 1) / count($pages)) * 100) : 0,
         ];
@@ -232,12 +287,54 @@ new #[Layout('components.layouts.player')] class extends Component {
                 <flux:subheading class="mt-1">{{ __('This quiz is no longer accepting responses.') }}</flux:subheading>
             </div>
         @elseif ($completed)
-            <div class="m-auto rounded-2xl border border-zinc-200 bg-white p-10 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <div class="m-auto w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-10 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
                 <span class="mx-auto flex size-14 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-red-600">
                     <flux:icon.check class="size-7 text-white" />
                 </span>
+
                 <flux:heading size="lg" class="mt-5">{{ __('Thank you!') }}</flux:heading>
-                <flux:subheading class="mt-1">{{ __('Your response has been recorded.') }}</flux:subheading>
+                <flux:subheading class="mt-1">
+                    {{ ($outcome['message'] ?? null) ?: __('Your response has been recorded.') }}
+                </flux:subheading>
+
+                @if ($outcome['show_score'] ?? false)
+                    <div class="mt-6 rounded-xl bg-zinc-50 p-5 dark:bg-zinc-800/60">
+                        <p class="text-4xl font-bold tracking-tight text-zinc-900 dark:text-white">
+                            {{ $outcome['points'] }}<span class="text-xl font-medium text-zinc-400">/{{ $outcome['max'] }}</span>
+                        </p>
+                        <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                            {{ __(':percentage% — :correct of :total correct', [
+                                'percentage' => $outcome['percentage'],
+                                'correct' => $outcome['correct'],
+                                'total' => $outcome['scored_questions'],
+                            ]) }}
+                        </p>
+
+                        <div class="mt-3 flex flex-wrap items-center justify-center gap-2">
+                            @if (($outcome['passed'] ?? null) !== null)
+                                <span @class([
+                                    'rounded-full px-3 py-1 text-xs font-semibold',
+                                    'bg-green-100 text-green-800 dark:bg-green-900/60 dark:text-green-300' => $outcome['passed'],
+                                    'bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-300' => ! $outcome['passed'],
+                                ])>
+                                    {{ $outcome['passed'] ? __('Passed') : __('Not passed') }}
+                                </span>
+                            @endif
+
+                            @if ($outcome['grade'] ?? null)
+                                <span class="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-800 dark:bg-orange-950/60 dark:text-orange-300">
+                                    {{ $outcome['grade'] }}
+                                </span>
+                            @endif
+                        </div>
+                    </div>
+                @endif
+
+                @if ($outcome['redirect'] ?? null)
+                    <flux:button href="{{ $outcome['redirect'] }}" variant="primary" class="mt-6">
+                        {{ __('Continue') }}
+                    </flux:button>
+                @endif
             </div>
         @elseif ($page)
             @if ($step === 0)

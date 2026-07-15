@@ -4,6 +4,7 @@ use App\Enums\QuestionType;
 use App\Models\Question;
 use App\Models\Quiz;
 use App\Models\QuizPage;
+use App\Services\Logic\LogicEngine;
 use Illuminate\Support\Facades\DB;
 use Livewire\Volt\Component;
 
@@ -22,6 +23,10 @@ new class extends Component {
     public array $qSettings = [];
     public string $qMatrixRows = '';
     public string $qMatrixColumns = '';
+    public string $qLogicMatch = 'all';
+
+    /** @var array<int, array{question_id: mixed, operator: string, value: string}> */
+    public array $qLogicConditions = [];
 
     /** @var array<int, string> */
     public array $pageTitles = [];
@@ -74,6 +79,14 @@ new class extends Component {
         $this->qSettings = $question->settings ?? [];
         $this->qMatrixRows = implode("\n", $this->qSettings['rows'] ?? []);
         $this->qMatrixColumns = implode("\n", $this->qSettings['columns'] ?? []);
+
+        $logic = $question->logic ?? [];
+        $this->qLogicMatch = ($logic['match'] ?? 'all') === 'any' ? 'any' : 'all';
+        $this->qLogicConditions = array_map(fn (array $condition) => [
+            'question_id' => (string) ($condition['question_id'] ?? ''),
+            'operator' => $condition['operator'] ?? 'equals',
+            'value' => (string) ($condition['value'] ?? ''),
+        ], $logic['conditions'] ?? []);
 
         $this->syncOptionLabels($question);
         $this->resetErrorBag();
@@ -303,6 +316,12 @@ new class extends Component {
             return;
         }
 
+        if (str_starts_with($name, 'qLogicConditions.') || $name === 'qLogicMatch') {
+            $this->persistLogic();
+
+            return;
+        }
+
         $map = [
             'qTitle' => 'title',
             'qDescription' => 'description',
@@ -368,6 +387,10 @@ new class extends Component {
                 'rows' => $this->linesToArray($this->qMatrixRows, [__('Row 1')]),
                 'columns' => $this->linesToArray($this->qMatrixColumns, [__('Column 1')]),
             ],
+            QuestionType::SingleChoice, QuestionType::MultipleChoice, QuestionType::Dropdown => [
+                'points' => $clampInt($settings['points'] ?? 1, 0, 1000) ?? 1,
+                'negative_points' => $clampInt($settings['negative_points'] ?? 0, 0, 1000) ?? 0,
+            ],
             default => $settings,
         };
 
@@ -385,6 +408,80 @@ new class extends Component {
             ->all();
 
         return $items !== [] ? $items : $fallback;
+    }
+
+    // ── Visibility logic ───────────────────────────────────────
+
+    /**
+     * Questions that may act as triggers: anything on an earlier page.
+     */
+    protected function logicTriggers(): \Illuminate\Support\Collection
+    {
+        $question = $this->selectedQuestion();
+
+        if (! $question) {
+            return collect();
+        }
+
+        $pagePosition = $question->page->position;
+
+        return $this->quiz->questions()
+            ->with('options')
+            ->whereHas('page', fn ($query) => $query->where('position', '<', $pagePosition))
+            ->where('is_hidden', false)
+            ->get();
+    }
+
+    public function addLogicCondition(): void
+    {
+        $this->qLogicConditions[] = ['question_id' => '', 'operator' => 'equals', 'value' => ''];
+    }
+
+    public function removeLogicCondition(int $index): void
+    {
+        unset($this->qLogicConditions[$index]);
+        $this->qLogicConditions = array_values($this->qLogicConditions);
+
+        $this->persistLogic();
+    }
+
+    protected function persistLogic(): void
+    {
+        $question = $this->selectedQuestion();
+
+        if (! $question) {
+            return;
+        }
+
+        $allowed = $this->logicTriggers()->pluck('id')->all();
+        $conditions = [];
+
+        foreach ($this->qLogicConditions as $row) {
+            $triggerId = (int) ($row['question_id'] ?? 0);
+            $operator = $row['operator'] ?? '';
+            $value = mb_substr(trim((string) ($row['value'] ?? '')), 0, 200);
+
+            if (! in_array($triggerId, $allowed, true) || ! in_array($operator, LogicEngine::OPERATORS, true)) {
+                continue;
+            }
+
+            if (in_array($operator, LogicEngine::VALUE_OPERATORS, true) && $value === '') {
+                continue;
+            }
+
+            $conditions[] = [
+                'question_id' => $triggerId,
+                'operator' => $operator,
+                'value' => in_array($operator, LogicEngine::VALUE_OPERATORS, true) ? $value : null,
+            ];
+        }
+
+        $question->update(['logic' => $conditions === [] ? null : [
+            'match' => $this->qLogicMatch === 'any' ? 'any' : 'all',
+            'conditions' => $conditions,
+        ]]);
+
+        $this->dispatch('builder-saved');
     }
 
     // ── Pages ──────────────────────────────────────────────────
@@ -643,6 +740,8 @@ new class extends Component {
             'typeGroups' => QuestionType::grouped(),
             'canUndo' => session($this->historyKey().'.undo', []) !== [],
             'canRedo' => session($this->historyKey().'.redo', []) !== [],
+            'logicTriggers' => $this->logicTriggers(),
+            'quizScored' => (bool) ($this->quiz->settings['scored'] ?? false),
         ];
     }
 }; ?>
@@ -933,6 +1032,89 @@ new class extends Component {
                             <flux:textarea wire:model.live.debounce.800ms="qMatrixColumns" label="{{ __('Columns (one per line)') }}" rows="4" />
                         </div>
                     @endif
+                @endif
+
+                @if ($selected->type->supportsCorrectAnswers())
+                    <flux:separator />
+
+                    <div>
+                        <flux:heading>{{ __('Scoring') }}</flux:heading>
+                        @unless ($quizScored)
+                            <flux:subheading class="text-xs">{{ __('Mark correct options above. Enable scoring in the quiz settings to grade responses.') }}</flux:subheading>
+                        @endunless
+
+                        <div class="mt-3 grid grid-cols-2 gap-4">
+                            <flux:input wire:model.live.debounce.500ms="qSettings.points" label="{{ __('Points for correct') }}" type="number" min="0" max="1000" />
+                            <flux:input wire:model.live.debounce.500ms="qSettings.negative_points" label="{{ __('Penalty for wrong') }}" type="number" min="0" max="1000" />
+                        </div>
+                    </div>
+                @endif
+
+                @if ($logicTriggers->isNotEmpty())
+                    <flux:separator />
+
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <flux:heading>{{ __('Visibility') }}</flux:heading>
+                                <flux:subheading class="text-xs">{{ __('Show this question only when answers from earlier pages match.') }}</flux:subheading>
+                            </div>
+
+                            @if (count($qLogicConditions) > 1)
+                                <flux:select wire:model.live="qLogicMatch" class="w-36" aria-label="{{ __('Match mode') }}">
+                                    <option value="all">{{ __('Match all') }}</option>
+                                    <option value="any">{{ __('Match any') }}</option>
+                                </flux:select>
+                            @endif
+                        </div>
+
+                        <div class="mt-3 space-y-2">
+                            @foreach ($qLogicConditions as $index => $condition)
+                                @php($trigger = $logicTriggers->firstWhere('id', (int) ($condition['question_id'] ?? 0)))
+                                <div class="flex flex-wrap items-center gap-2" wire:key="logic-{{ $selected->id }}-{{ $index }}">
+                                    <flux:select wire:model.live="qLogicConditions.{{ $index }}.question_id" class="min-w-40 flex-1" aria-label="{{ __('Trigger question') }}">
+                                        <option value="">{{ __('Choose a question…') }}</option>
+                                        @foreach ($logicTriggers as $triggerOption)
+                                            <option value="{{ $triggerOption->id }}">
+                                                {{ $triggerOption->title !== '' ? \Illuminate\Support\Str::limit($triggerOption->title, 40) : __('Untitled question') }}
+                                            </option>
+                                        @endforeach
+                                    </flux:select>
+
+                                    <flux:select wire:model.live="qLogicConditions.{{ $index }}.operator" class="w-44" aria-label="{{ __('Operator') }}">
+                                        @foreach (\App\Services\Logic\LogicEngine::OPERATORS as $operator)
+                                            <option value="{{ $operator }}">{{ \App\Services\Logic\LogicEngine::operatorLabel($operator) }}</option>
+                                        @endforeach
+                                    </flux:select>
+
+                                    @if (in_array($condition['operator'] ?? 'equals', \App\Services\Logic\LogicEngine::VALUE_OPERATORS, true))
+                                        @if ($trigger && $trigger->type->hasOptions())
+                                            <flux:select wire:model.live="qLogicConditions.{{ $index }}.value" class="min-w-36 flex-1" aria-label="{{ __('Option') }}">
+                                                <option value="">{{ __('Choose an option…') }}</option>
+                                                @foreach ($trigger->options as $triggerOptionChoice)
+                                                    <option value="{{ $triggerOptionChoice->id }}">{{ $triggerOptionChoice->label }}</option>
+                                                @endforeach
+                                            </flux:select>
+                                        @else
+                                            <input
+                                                type="text"
+                                                wire:model.blur="qLogicConditions.{{ $index }}.value"
+                                                placeholder="{{ __('Value') }}"
+                                                aria-label="{{ __('Comparison value') }}"
+                                                class="min-w-24 flex-1 rounded-lg border-zinc-300 bg-white text-sm shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                                            />
+                                        @endif
+                                    @endif
+
+                                    <flux:button variant="subtle" size="xs" icon="x-mark" wire:click="removeLogicCondition({{ $index }})" aria-label="{{ __('Remove condition') }}" />
+                                </div>
+                            @endforeach
+                        </div>
+
+                        <flux:button variant="subtle" size="sm" icon="plus" wire:click="addLogicCondition" class="mt-3">
+                            {{ __('Add condition') }}
+                        </flux:button>
+                    </div>
                 @endif
             </div>
         @else

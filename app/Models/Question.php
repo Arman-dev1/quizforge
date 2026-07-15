@@ -27,6 +27,7 @@ class Question extends Model
         'position',
         'settings',
         'validation',
+        'logic',
     ];
 
     protected function casts(): array
@@ -37,6 +38,7 @@ class Question extends Model
             'is_hidden' => 'boolean',
             'settings' => 'array',
             'validation' => 'array',
+            'logic' => 'array',
         ];
     }
 
