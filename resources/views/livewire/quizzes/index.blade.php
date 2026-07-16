@@ -95,6 +95,7 @@ new class extends Component {
             'statuses' => QuizStatus::cases(),
             'types' => QuizType::cases(),
             'canCreate' => Auth::user()->can('create', Quiz::class),
+            'canManage' => Auth::user()->roleIn(Auth::user()->currentWorkspace)?->canEditContent() ?? false,
             'isFiltering' => $this->search !== '' || $this->status !== 'all' || $this->type !== 'all',
         ];
     }
@@ -145,6 +146,17 @@ new class extends Component {
         <flux:text class="mt-4 text-red-600 dark:text-red-400">{{ $message }}</flux:text>
     @enderror
 
+    @if ($canManage && ! $canCreate)
+        <div class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-orange-200 bg-orange-50 p-4 dark:border-orange-900 dark:bg-orange-950/40">
+            <p class="text-sm text-orange-800 dark:text-orange-300">
+                {{ __('You have reached your plan\'s quiz limit.') }}
+            </p>
+            <flux:button :href="route('settings.billing')" wire:navigate variant="primary" size="sm">
+                {{ __('Upgrade') }}
+            </flux:button>
+        </div>
+    @endif
+
     @if ($quizzes->isEmpty())
         <div class="mt-16 flex flex-col items-center justify-center text-center">
             @if ($isFiltering)
@@ -186,7 +198,7 @@ new class extends Component {
                         {{ $quiz->status->label() }}
                     </span>
 
-                    @if ($canCreate)
+                    @if ($canManage)
                         <flux:dropdown position="bottom" align="end">
                             <flux:button variant="subtle" size="sm" icon="ellipsis-horizontal" aria-label="{{ __('Actions for :name', ['name' => $quiz->name]) }}" />
 

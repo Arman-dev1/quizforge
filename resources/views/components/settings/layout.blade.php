@@ -7,6 +7,9 @@
             <flux:navlist.item href="{{ route('settings.notifications') }}" wire:navigate>{{ __('Notifications') }}</flux:navlist.item>
             <flux:navlist.item href="{{ route('settings.workspace') }}" wire:navigate>{{ __('Workspace') }}</flux:navlist.item>
             <flux:navlist.item href="{{ route('settings.members') }}" wire:navigate>{{ __('Members') }}</flux:navlist.item>
+            @if (auth()->user()->currentWorkspace && auth()->user()->roleIn(auth()->user()->currentWorkspace) === \App\Enums\WorkspaceRole::Owner)
+                <flux:navlist.item href="{{ route('settings.billing') }}" wire:navigate>{{ __('Billing') }}</flux:navlist.item>
+            @endif
         </flux:navlist>
     </div>
 

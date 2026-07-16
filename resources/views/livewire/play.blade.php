@@ -48,6 +48,14 @@ new #[Layout('components.layouts.player')] class extends Component {
             return;
         }
 
+        // Monthly response quota reached: behave exactly like a closed
+        // quiz — billing details never leak to respondents.
+        if (! app(\App\Services\Billing\UsageLimits::class)->canAcceptResponse($quiz->workspace)) {
+            $this->closed = true;
+
+            return;
+        }
+
         \App\Models\QuizView::record($quiz);
 
         $this->resumeExistingResponse();

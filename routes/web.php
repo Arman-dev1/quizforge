@@ -25,6 +25,7 @@ Route::middleware(['auth'])->group(function () {
     Volt::route('settings/workspace', 'settings.workspace')->name('settings.workspace');
     Volt::route('settings/members', 'settings.members')->name('settings.members');
     Volt::route('settings/notifications', 'settings.notifications')->name('settings.notifications');
+    Volt::route('settings/billing', 'settings.billing')->name('settings.billing');
 
     Volt::route('workspaces/create', 'workspaces.create')->name('workspaces.create');
     Volt::route('invitations/{token}', 'invitations.accept')->name('invitations.accept');

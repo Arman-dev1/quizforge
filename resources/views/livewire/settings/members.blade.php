@@ -37,6 +37,12 @@ new class extends Component {
             'role' => ['required', Rule::in($assignable)],
         ]);
 
+        if (! app(\App\Services\Billing\UsageLimits::class)->canAddMember($workspace)) {
+            $this->addError('email', __('You have reached your plan\'s member limit. Upgrade to invite more people.'));
+
+            return;
+        }
+
         if ($workspace->members()->where('email', $validated['email'])->exists()) {
             $this->addError('email', __('This person is already a member of the workspace.'));
 

@@ -10,11 +10,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
+use Laravel\Paddle\Billable;
 
 class Workspace extends Model
 {
     /** @use HasFactory<WorkspaceFactory> */
-    use HasFactory, SoftDeletes;
+    use Billable, HasFactory, SoftDeletes;
 
     protected $fillable = [
         'name',

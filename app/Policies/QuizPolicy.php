@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\Quiz;
 use App\Models\User;
+use App\Services\Billing\UsageLimits;
 
 class QuizPolicy
 {
@@ -21,7 +22,9 @@ class QuizPolicy
     {
         $workspace = $user->currentWorkspace;
 
-        return $workspace && ($user->roleIn($workspace)?->canEditContent() ?? false);
+        return $workspace
+            && ($user->roleIn($workspace)?->canEditContent() ?? false)
+            && app(UsageLimits::class)->canCreateQuiz($workspace);
     }
 
     public function update(User $user, Quiz $quiz): bool
