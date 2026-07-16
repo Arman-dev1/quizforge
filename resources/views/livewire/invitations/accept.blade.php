@@ -54,6 +54,16 @@ new #[Layout('components.layouts.auth')] class extends Component {
 
         if (! $workspace->hasMember(Auth::user())) {
             $workspace->members()->attach(Auth::id(), ['role' => $this->invitation->role->value]);
+
+            $managers = $workspace->members()->get()->filter(
+                fn ($member) => $member->id !== Auth::id()
+                    && \App\Enums\WorkspaceRole::from($member->pivot->role)->canManageMembers(),
+            );
+
+            \Illuminate\Support\Facades\Notification::send(
+                $managers,
+                new \App\Notifications\MemberJoined(Auth::user(), $workspace),
+            );
         }
 
         $this->invitation->delete();

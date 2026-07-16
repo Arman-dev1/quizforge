@@ -221,6 +221,11 @@ new #[Layout('components.layouts.player')] class extends Component {
             'grade' => $resolved->grade,
         ]);
 
+        \Illuminate\Support\Facades\Notification::send(
+            $quiz->workspace->members()->get(),
+            new \App\Notifications\NewResponse($response),
+        );
+
         $this->outcome = [
             'show_score' => $resolved->showScore && $scoreResult !== null && $scoreResult->maxPoints > 0,
             'points' => $scoreResult?->points,
@@ -237,6 +242,8 @@ new #[Layout('components.layouts.player')] class extends Component {
 
     protected function storeAnswers(QuizResponse $response, array $questions): void
     {
+        $hadEmailAnswer = $response->answers()->where('question_type', 'email')->exists();
+
         foreach ($questions as $question) {
             $value = $this->answers[$question['id']] ?? null;
 
@@ -251,6 +258,17 @@ new #[Layout('components.layouts.player')] class extends Component {
                 ['question_id' => $question['id']],
                 ['question_type' => $question['type'], 'value' => $value],
             );
+        }
+
+        if (! $hadEmailAnswer) {
+            $email = $response->answers()->where('question_type', 'email')->first()?->value;
+
+            if ($email) {
+                \Illuminate\Support\Facades\Notification::send(
+                    $this->quiz()->workspace->members()->get(),
+                    new \App\Notifications\NewLead($response, (string) $email),
+                );
+            }
         }
     }
 

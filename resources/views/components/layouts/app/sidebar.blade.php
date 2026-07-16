@@ -11,7 +11,12 @@
                 <x-app-logo class="size-8" href="#"></x-app-logo>
             </a>
 
-            <livewire:workspace-switcher />
+            <div class="flex items-center gap-1">
+                <div class="min-w-0 flex-1">
+                    <livewire:workspace-switcher />
+                </div>
+                <livewire:notification-bell key="bell-desktop" />
+            </div>
 
             <flux:navlist variant="outline">
                 <flux:navlist.group heading="{{ __('Platform') }}" class="grid">
@@ -74,6 +79,8 @@
             <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
 
             <flux:spacer />
+
+            <livewire:notification-bell key="bell-mobile" />
 
             <flux:dropdown position="top" align="end">
                 <flux:profile

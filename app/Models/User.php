@@ -48,7 +48,25 @@ class User extends Authenticatable // implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'notification_preferences' => 'array',
         ];
+    }
+
+    /**
+     * Per-type, per-channel notification defaults. Deliberately quiet:
+     * everything in-app, email only for leads.
+     */
+    public const NOTIFICATION_DEFAULTS = [
+        'new_response' => ['database' => true, 'mail' => false],
+        'new_lead' => ['database' => true, 'mail' => true],
+        'member_joined' => ['database' => true, 'mail' => false],
+    ];
+
+    public function wantsNotification(string $type, string $channel): bool
+    {
+        return (bool) ($this->notification_preferences[$type][$channel]
+            ?? self::NOTIFICATION_DEFAULTS[$type][$channel]
+            ?? false);
     }
 
     public function workspaces(): BelongsToMany

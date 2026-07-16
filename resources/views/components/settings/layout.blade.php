@@ -4,6 +4,7 @@
             <flux:navlist.item href="{{ route('settings.profile') }}" wire:navigate>{{ __('Profile') }}</flux:navlist.item>
             <flux:navlist.item href="{{ route('settings.password') }}" wire:navigate>{{ __('Password') }}</flux:navlist.item>
             <flux:navlist.item href="{{ route('settings.appearance') }}" wire:navigate>{{ __('Appearance') }}</flux:navlist.item>
+            <flux:navlist.item href="{{ route('settings.notifications') }}" wire:navigate>{{ __('Notifications') }}</flux:navlist.item>
             <flux:navlist.item href="{{ route('settings.workspace') }}" wire:navigate>{{ __('Workspace') }}</flux:navlist.item>
             <flux:navlist.item href="{{ route('settings.members') }}" wire:navigate>{{ __('Members') }}</flux:navlist.item>
         </flux:navlist>
