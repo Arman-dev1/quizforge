@@ -1,10 +1,12 @@
 <?php
 
 use App\Enums\QuestionType;
+use App\Models\LibraryQuestion;
 use App\Models\Question;
 use App\Models\Quiz;
 use App\Models\QuizPage;
 use App\Services\Logic\LogicEngine;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Livewire\Volt\Component;
 
@@ -410,6 +412,77 @@ new class extends Component {
         return $items !== [] ? $items : $fallback;
     }
 
+    // ── Question library ───────────────────────────────────────
+
+    public function saveToLibrary(): void
+    {
+        $question = $this->selectedQuestion();
+
+        if (! $question) {
+            return;
+        }
+
+        LibraryQuestion::create([
+            'created_by' => Auth::id(),
+            'name' => $question->title !== '' ? $question->title : $question->type->label(),
+            'question' => [
+                'type' => $question->type->value,
+                'title' => $question->title,
+                'description' => $question->description,
+                'placeholder' => $question->placeholder,
+                'help_text' => $question->help_text,
+                'is_required' => $question->is_required,
+                'settings' => $question->settings ?? [],
+                'validation' => $question->validation ?? [],
+                'options' => $question->options->map(fn ($option) => [
+                    'label' => $option->label,
+                    'is_correct' => $option->is_correct,
+                ])->all(),
+            ],
+        ]);
+
+        $this->dispatch('builder-saved');
+    }
+
+    public function addLibraryQuestion(int $libraryQuestionId): void
+    {
+        $item = LibraryQuestion::findOrFail($libraryQuestionId);
+        $page = $this->quiz->pages()->findOrFail($this->pickingForPageId);
+
+        $this->pushHistory();
+
+        $data = $item->question;
+
+        $question = $page->questions()->create([
+            'quiz_id' => $this->quiz->id,
+            'type' => $data['type'],
+            'title' => $data['title'] ?? '',
+            'description' => $data['description'] ?? null,
+            'placeholder' => $data['placeholder'] ?? null,
+            'help_text' => $data['help_text'] ?? null,
+            'is_required' => (bool) ($data['is_required'] ?? false),
+            'position' => $page->questions()->count(),
+            'settings' => $data['settings'] ?? [],
+            'validation' => $data['validation'] ?? [],
+        ]);
+
+        foreach ($data['options'] ?? [] as $index => $option) {
+            $question->options()->create([
+                'label' => $option['label'],
+                'is_correct' => (bool) ($option['is_correct'] ?? false),
+                'position' => $index,
+            ]);
+        }
+
+        $this->pickingForPageId = null;
+        $this->selectQuestion($question->id);
+    }
+
+    public function deleteLibraryQuestion(int $libraryQuestionId): void
+    {
+        LibraryQuestion::findOrFail($libraryQuestionId)->delete();
+    }
+
     // ── Visibility logic ───────────────────────────────────────
 
     /**
@@ -742,6 +815,7 @@ new class extends Component {
             'canRedo' => session($this->historyKey().'.redo', []) !== [],
             'logicTriggers' => $this->logicTriggers(),
             'quizScored' => (bool) ($this->quiz->settings['scored'] ?? false),
+            'libraryQuestions' => $this->pickingForPageId ? LibraryQuestion::latest()->get() : collect(),
         ];
     }
 }; ?>
@@ -870,6 +944,36 @@ new class extends Component {
             </div>
 
             <div class="mt-6 space-y-6">
+                @if ($libraryQuestions->isNotEmpty())
+                    <div>
+                        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ __('Your library') }}</p>
+
+                        <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                            @foreach ($libraryQuestions as $libraryQuestion)
+                                <div class="flex items-center gap-1 rounded-lg border border-zinc-200 transition hover:border-orange-300 dark:border-zinc-700 dark:hover:border-orange-800" wire:key="lib-{{ $libraryQuestion->id }}">
+                                    <button
+                                        type="button"
+                                        wire:click="addLibraryQuestion({{ $libraryQuestion->id }})"
+                                        class="flex min-w-0 flex-1 items-center gap-3 p-3 text-left"
+                                    >
+                                        <flux:icon :icon="\App\Enums\QuestionType::from($libraryQuestion->question['type'])->icon()" class="size-5 shrink-0 text-zinc-500 dark:text-zinc-400" />
+                                        <span class="min-w-0 flex-1 truncate text-sm font-medium text-zinc-800 dark:text-white">{{ $libraryQuestion->name }}</span>
+                                    </button>
+                                    <flux:button
+                                        variant="subtle"
+                                        size="xs"
+                                        icon="x-mark"
+                                        class="mr-1"
+                                        wire:click="deleteLibraryQuestion({{ $libraryQuestion->id }})"
+                                        wire:confirm="{{ __('Remove this question from the library?') }}"
+                                        aria-label="{{ __('Remove from library') }}"
+                                    />
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
                 @foreach ($typeGroups as $category => $types)
                     <div>
                         <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ $category }}</p>
@@ -903,6 +1007,7 @@ new class extends Component {
                     <flux:button variant="subtle" size="sm" icon="chevron-up" wire:click="moveQuestion({{ $selected->id }}, -1)" aria-label="{{ __('Move question up') }}" />
                     <flux:button variant="subtle" size="sm" icon="chevron-down" wire:click="moveQuestion({{ $selected->id }}, 1)" aria-label="{{ __('Move question down') }}" />
                     <flux:button variant="subtle" size="sm" icon="document-duplicate" wire:click="duplicateQuestion({{ $selected->id }})" aria-label="{{ __('Duplicate question') }}" />
+                    <flux:button variant="subtle" size="sm" icon="bookmark" wire:click="saveToLibrary" title="{{ __('Save to question library') }}" aria-label="{{ __('Save to question library') }}" />
                     <flux:button
                         variant="subtle"
                         size="sm"

@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Quizzes\PublishQuiz;
+use App\Actions\Quizzes\SaveQuizAsTemplate;
 use App\Enums\QuizStatus;
 use App\Models\Quiz;
 use Illuminate\Support\Facades\Auth;
@@ -124,6 +125,15 @@ new class extends Component {
         $this->dispatch('results-saved');
     }
 
+    public function saveAsTemplate(SaveQuizAsTemplate $action): void
+    {
+        $this->authorize('update', $this->quiz);
+
+        $action->handle($this->quiz, Auth::user());
+
+        $this->dispatch('template-saved');
+    }
+
     public function publish(PublishQuiz $publishQuiz): void
     {
         $this->authorize('update', $this->quiz);
@@ -204,6 +214,8 @@ new class extends Component {
             @if ($canEdit)
                 <flux:button :href="route('quizzes.builder', $quiz)" wire:navigate variant="primary" icon="squares-plus">{{ __('Open builder') }}</flux:button>
                 <flux:button wire:click="duplicate" variant="filled" icon="document-duplicate">{{ __('Duplicate') }}</flux:button>
+                <flux:button wire:click="saveAsTemplate" variant="filled" icon="bookmark" title="{{ __('Save as a reusable template for your workspace') }}">{{ __('Save as template') }}</flux:button>
+                <x-action-message on="template-saved">{{ __('Template saved.') }}</x-action-message>
 
                 @if ($quiz->isArchived())
                     <flux:button wire:click="unarchive" variant="filled" icon="arrow-uturn-left">{{ __('Restore to draft') }}</flux:button>

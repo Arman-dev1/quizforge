@@ -1,8 +1,10 @@
 <?php
 
+use App\Actions\Quizzes\CreateQuizFromTemplate;
 use App\Enums\QuizStatus;
 use App\Enums\QuizType;
 use App\Models\Quiz;
+use App\Models\QuizTemplate;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Livewire\Volt\Component;
@@ -10,10 +12,35 @@ use Livewire\Volt\Component;
 new class extends Component {
     public string $name = '';
     public string $type = '';
+    public string $tab = 'templates';
 
     public function mount(): void
     {
         $this->authorize('create', Quiz::class);
+
+        if (! QuizTemplate::availableTo(Auth::user()->currentWorkspace)->exists()) {
+            $this->tab = 'scratch';
+        }
+    }
+
+    public function useTemplate(int $templateId, CreateQuizFromTemplate $action): void
+    {
+        $this->authorize('create', Quiz::class);
+
+        $template = QuizTemplate::availableTo(Auth::user()->currentWorkspace)->findOrFail($templateId);
+
+        $quiz = $action->handle(Auth::user(), $template);
+
+        $this->redirectRoute('quizzes.builder', $quiz, navigate: true);
+    }
+
+    public function deleteTemplate(int $templateId): void
+    {
+        $this->authorize('create', Quiz::class);
+
+        QuizTemplate::where('workspace_id', Auth::user()->current_workspace_id)
+            ->findOrFail($templateId)
+            ->delete();
     }
 
     public function selectType(string $type): void
@@ -48,9 +75,15 @@ new class extends Component {
 
     public function with(): array
     {
+        $templates = QuizTemplate::availableTo(Auth::user()->currentWorkspace)
+            ->orderBy('name')
+            ->get();
+
         return [
             'groups' => QuizType::grouped(),
             'selected' => QuizType::tryFrom($this->type),
+            'templateGroups' => $templates->groupBy('category')->sortKeys(),
+            'hasTemplates' => $templates->isNotEmpty(),
         ];
     }
 }; ?>
@@ -58,10 +91,79 @@ new class extends Component {
 <section class="mx-auto w-full max-w-4xl">
     <div>
         <flux:heading size="xl">{{ __('Create a new quiz') }}</flux:heading>
-        <flux:subheading>{{ __('Pick a type to get the right defaults — you can change everything later.') }}</flux:subheading>
+        <flux:subheading>{{ __('Start from a ready-made template or build from scratch.') }}</flux:subheading>
     </div>
 
-    <form wire:submit="create" class="mt-8 space-y-8">
+    @if ($hasTemplates)
+        <div class="mt-6 flex items-center gap-1 rounded-xl border border-zinc-200 p-1 dark:border-zinc-700" role="tablist">
+            @foreach (['templates' => __('Templates'), 'scratch' => __('From scratch')] as $key => $label)
+                <button
+                    type="button"
+                    wire:click="$set('tab', '{{ $key }}')"
+                    role="tab"
+                    aria-selected="{{ $tab === $key ? 'true' : 'false' }}"
+                    @class([
+                        'flex-1 rounded-lg px-4 py-2 text-sm font-medium transition',
+                        'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900' => $tab === $key,
+                        'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800' => $tab !== $key,
+                    ])
+                >
+                    {{ $label }}
+                </button>
+            @endforeach
+        </div>
+    @endif
+
+    @if ($hasTemplates && $tab === 'templates')
+        <div class="mt-8 space-y-8">
+            @foreach ($templateGroups as $category => $templates)
+                <div>
+                    <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ $category }}</p>
+
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        @foreach ($templates as $template)
+                            <div class="flex flex-col rounded-xl border border-zinc-200 p-4 transition hover:border-orange-300 dark:border-zinc-700 dark:hover:border-orange-800" wire:key="template-{{ $template->id }}">
+                                <div class="flex items-start justify-between gap-2">
+                                    <p class="text-sm font-semibold text-zinc-900 dark:text-white">{{ $template->name }}</p>
+                                    @unless ($template->isGlobal())
+                                        <flux:button
+                                            variant="subtle"
+                                            size="xs"
+                                            icon="trash"
+                                            wire:click="deleteTemplate({{ $template->id }})"
+                                            wire:confirm="{{ __('Delete this template?') }}"
+                                            aria-label="{{ __('Delete template') }}"
+                                        />
+                                    @endunless
+                                </div>
+
+                                @if ($template->description)
+                                    <p class="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">{{ $template->description }}</p>
+                                @endif
+
+                                <div class="mt-3 flex flex-1 items-end justify-between gap-2">
+                                    <span class="text-xs text-zinc-500 dark:text-zinc-400">
+                                        {{ $template->type->label() }}
+                                        &middot;
+                                        {{ trans_choice(':count question|:count questions', $template->questionCount(), ['count' => $template->questionCount()]) }}
+                                        @unless ($template->isGlobal())
+                                            &middot; {{ __('Yours') }}
+                                        @endunless
+                                    </span>
+
+                                    <flux:button variant="primary" size="sm" wire:click="useTemplate({{ $template->id }})">
+                                        {{ __('Use') }}
+                                    </flux:button>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    @endif
+
+    <form wire:submit="create" @class(['mt-8 space-y-8', 'hidden' => $hasTemplates && $tab === 'templates'])>
         <div class="space-y-6">
             @foreach ($groups as $category => $types)
                 <div>
