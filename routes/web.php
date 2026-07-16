@@ -38,6 +38,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('quizzes/{quiz}/responses/export', ResponseExportController::class)->name('quizzes.responses.export');
     Volt::route('quizzes/{quiz}/responses/{response}', 'quizzes.response-detail')->name('quizzes.responses.show');
 
+    Volt::route('quizzes/{quiz}/analytics', 'quizzes.analytics')->name('quizzes.analytics');
+
     Volt::route('leads', 'leads.index')->name('leads.index');
 });
 

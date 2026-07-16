@@ -48,6 +48,8 @@ new #[Layout('components.layouts.player')] class extends Component {
             return;
         }
 
+        \App\Models\QuizView::record($quiz);
+
         $this->resumeExistingResponse();
         $this->initializeRankingDefaults();
     }

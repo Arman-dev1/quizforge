@@ -67,6 +67,11 @@ class Quiz extends Model
         return $this->hasMany(QuizResponse::class);
     }
 
+    public function views(): HasMany
+    {
+        return $this->hasMany(QuizView::class);
+    }
+
     public function latestVersion(): ?QuizVersion
     {
         return $this->versions()->latest('version')->first();
