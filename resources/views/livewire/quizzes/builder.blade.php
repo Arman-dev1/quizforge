@@ -97,14 +97,28 @@ new class extends Component {
     protected function clearSelection(): void
     {
         $this->selectedQuestionId = null;
+        $this->resolvedQuestion = null;
         $this->optionLabels = [];
     }
 
+    protected ?Question $resolvedQuestion = null;
+
+    /**
+     * Memoized per request — the builder reads the selected question
+     * several times per interaction. Option mutations must reload the
+     * 'options' relation on the returned instance.
+     */
     protected function selectedQuestion(): ?Question
     {
-        return $this->selectedQuestionId
-            ? $this->quiz->questions()->with('options')->find($this->selectedQuestionId)
-            : null;
+        if (! $this->selectedQuestionId) {
+            return null;
+        }
+
+        if ($this->resolvedQuestion?->id !== $this->selectedQuestionId) {
+            $this->resolvedQuestion = $this->quiz->questions()->with('options')->find($this->selectedQuestionId);
+        }
+
+        return $this->resolvedQuestion;
     }
 
     protected function syncPageTitles(): void
@@ -286,6 +300,8 @@ new class extends Component {
                 $sibling->update(['position' => $index]);
             }
         });
+
+        $question->load('options');
     }
 
     // ── Autosave ───────────────────────────────────────────────
@@ -731,6 +747,7 @@ new class extends Component {
             'position' => $question->options()->count(),
         ]);
 
+        $question->load('options');
         $this->syncOptionLabels($question);
     }
 
@@ -778,6 +795,8 @@ new class extends Component {
 
             $options[$index]->update(['position' => $neighbor->position]);
             $neighbor->update(['position' => $index]);
+
+            $question->load('options');
         }
     }
 
@@ -803,6 +822,8 @@ new class extends Component {
                 $option->update(['is_correct' => true]);
             }
         }
+
+        $question->load('options');
     }
 
     public function with(): array

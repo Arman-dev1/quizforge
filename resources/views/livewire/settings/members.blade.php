@@ -19,9 +19,11 @@ new class extends Component {
         return Auth::user()->currentWorkspace;
     }
 
+    protected ?WorkspaceRole $resolvedRole = null;
+
     protected function actorRole(): WorkspaceRole
     {
-        return Auth::user()->roleIn($this->workspace());
+        return $this->resolvedRole ??= Auth::user()->roleIn($this->workspace());
     }
 
     public function invite(): void

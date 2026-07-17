@@ -302,7 +302,14 @@ new #[Layout('components.layouts.player')] class extends Component {
 
 <div class="flex min-h-svh flex-col">
     @unless ($closed || $completed)
-        <div class="h-1.5 w-full bg-zinc-200 dark:bg-zinc-800">
+        <div
+            class="h-1.5 w-full bg-zinc-200 dark:bg-zinc-800"
+            role="progressbar"
+            aria-valuenow="{{ $progress }}"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-label="{{ __('Quiz progress') }}"
+        >
             <div class="h-full bg-gradient-to-r from-orange-500 to-red-600 transition-all duration-300" style="width: {{ $progress }}%"></div>
         </div>
     @endunless

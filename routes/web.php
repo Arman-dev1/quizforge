@@ -4,9 +4,8 @@ use App\Http\Controllers\ResponseExportController;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
-Route::get('/', function () {
-    return view('welcome');
-})->name('home');
+// A view route (not a closure) so `route:cache` works in production.
+Route::view('/', 'welcome')->name('home');
 
 Volt::route('q/{slug}', 'play')
     ->middleware('throttle:60,1')

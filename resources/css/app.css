@@ -64,6 +64,10 @@
     }
 }
 
+[x-cloak] {
+    display: none !important;
+}
+
 .sortable-ghost {
     @apply opacity-40;
 }
