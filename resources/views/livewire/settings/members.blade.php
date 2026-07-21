@@ -178,30 +178,35 @@ new class extends Component {
 
     <x-settings.layout heading="{{ __('Members') }}" :subheading="__('Manage who has access to :name', ['name' => $workspace->name])">
         @if ($canManage)
-            <form wire:submit="invite" class="mt-6 space-y-4">
-                <div class="flex flex-wrap items-end gap-3">
-                    <div class="min-w-48 flex-1">
-                        <flux:input
-                            wire:model="email"
-                            label="{{ __('Invite by email') }}"
-                            type="email"
-                            placeholder="teammate@company.com"
-                        />
+            <div class="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+                <flux:heading>{{ __('Invite a teammate') }}</flux:heading>
+                <flux:subheading>{{ __('They will get an email link to join this workspace.') }}</flux:subheading>
+
+                <form wire:submit="invite" class="mt-4 space-y-4">
+                    <div class="flex flex-wrap items-end gap-3">
+                        <div class="min-w-48 flex-1">
+                            <flux:input
+                                wire:model="email"
+                                label="{{ __('Invite by email') }}"
+                                type="email"
+                                placeholder="teammate@company.com"
+                            />
+                        </div>
+
+                        <flux:select wire:model="role" label="{{ __('Role') }}" class="w-36">
+                            @foreach ($assignableRoles as $assignableRole)
+                                <option value="{{ $assignableRole->value }}">{{ $assignableRole->label() }}</option>
+                            @endforeach
+                        </flux:select>
+
+                        <flux:button variant="primary" type="submit">{{ __('Invite') }}</flux:button>
                     </div>
 
-                    <flux:select wire:model="role" label="{{ __('Role') }}" class="w-36">
-                        @foreach ($assignableRoles as $assignableRole)
-                            <option value="{{ $assignableRole->value }}">{{ $assignableRole->label() }}</option>
-                        @endforeach
-                    </flux:select>
-
-                    <flux:button variant="primary" type="submit">{{ __('Invite') }}</flux:button>
-                </div>
-
-                <x-action-message on="member-invited">
-                    {{ __('Invitation sent.') }}
-                </x-action-message>
-            </form>
+                    <x-action-message on="member-invited">
+                        {{ __('Invitation sent.') }}
+                    </x-action-message>
+                </form>
+            </div>
         @endif
 
         @error('members')
@@ -211,11 +216,11 @@ new class extends Component {
         <div class="mt-8">
             <flux:heading>{{ __('Members') }} ({{ $members->count() }})</flux:heading>
 
-            <ul class="mt-3 divide-y divide-zinc-200 rounded-xl border border-zinc-200 dark:divide-zinc-700 dark:border-zinc-700">
+            <ul class="mt-3 divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:divide-zinc-800/70 dark:border-zinc-800 dark:bg-zinc-900">
                 @foreach ($members as $member)
                     @php($memberRole = \App\Enums\WorkspaceRole::from($member->pivot->role))
-                    <li class="flex items-center gap-3 p-3" wire:key="member-{{ $member->id }}">
-                        <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-neutral-200 text-sm font-medium text-black dark:bg-neutral-700 dark:text-white">
+                    <li class="flex items-center gap-3 px-4 py-3" wire:key="member-{{ $member->id }}">
+                        <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-sm font-bold text-teal-600 dark:bg-teal-950/60 dark:text-teal-400">
                             {{ $member->initials() }}
                         </span>
 
@@ -264,9 +269,9 @@ new class extends Component {
             <div class="mt-8">
                 <flux:heading>{{ __('Pending invitations') }} ({{ $invitations->count() }})</flux:heading>
 
-                <ul class="mt-3 divide-y divide-zinc-200 rounded-xl border border-zinc-200 dark:divide-zinc-700 dark:border-zinc-700">
+                <ul class="mt-3 divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:divide-zinc-800/70 dark:border-zinc-800 dark:bg-zinc-900">
                     @foreach ($invitations as $invitation)
-                        <li class="flex items-center gap-3 p-3" wire:key="invitation-{{ $invitation->id }}">
+                        <li class="flex items-center gap-3 px-4 py-3" wire:key="invitation-{{ $invitation->id }}">
                             <div class="min-w-0 flex-1 leading-tight">
                                 <p class="truncate text-sm font-medium text-zinc-800 dark:text-white">{{ $invitation->email }}</p>
                                 <p class="text-xs text-zinc-500 dark:text-zinc-400">

@@ -29,11 +29,11 @@ new class extends Component {
 
 <section class="w-full">
     <div class="min-w-0">
-        <a href="{{ route('quizzes.show', $quiz) }}" wire:navigate class="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200">
+        <a href="{{ route('quizzes.show', $quiz) }}" wire:navigate class="flex items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200">
             <flux:icon.arrow-left class="size-3.5" />
             {{ $quiz->name }}
         </a>
-        <flux:heading size="xl" class="mt-1">{{ __('Analytics') }}</flux:heading>
+        <flux:heading size="xl" class="mt-1 tracking-tight">{{ __('Analytics') }}</flux:heading>
     </div>
 
     @unless ($hasVersion)
@@ -57,12 +57,12 @@ new class extends Component {
                 ['label' => __('Completion rate'), 'value' => $summary['completion_rate'] === null ? '—' : $summary['completion_rate'].'%', 'icon' => 'arrow-trending-up'],
                 ['label' => __('Avg. time'), 'value' => $avgLabel, 'icon' => 'clock'],
             ] as $tile)
-                <div class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
+                <div class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
                     <div class="flex items-center justify-between">
-                        <p class="text-sm font-medium text-zinc-500 dark:text-zinc-400">{{ $tile['label'] }}</p>
-                        <flux:icon :icon="$tile['icon']" class="size-4 text-zinc-400" />
+                        <p class="text-sm font-semibold text-zinc-500 dark:text-zinc-400">{{ $tile['label'] }}</p>
+                        <flux:icon :icon="$tile['icon']" class="size-4 text-teal-600 dark:text-teal-400" />
                     </div>
-                    <p class="mt-2 text-3xl font-semibold tracking-tight text-zinc-900 dark:text-white">{{ $tile['value'] }}</p>
+                    <p class="mt-3 text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white">{{ $tile['value'] }}</p>
                 </div>
             @endforeach
         </div>

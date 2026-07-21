@@ -49,11 +49,11 @@ new class extends Component {
 
     <x-settings.layout heading="{{ __('Notifications') }}" subheading="{{ __('Choose how you want to hear about activity') }}">
         <form wire:submit="save" class="mt-6 space-y-6">
-            <div class="divide-y divide-zinc-200 rounded-xl border border-zinc-200 dark:divide-zinc-700 dark:border-zinc-700">
+            <div class="divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:divide-zinc-800/70 dark:border-zinc-800 dark:bg-zinc-900">
                 @foreach ($labels as $type => $label)
-                    <div class="flex flex-wrap items-center justify-between gap-3 p-4" wire:key="pref-{{ $type }}">
+                    <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-4" wire:key="pref-{{ $type }}">
                         <div class="min-w-0">
-                            <p class="text-sm font-medium text-zinc-800 dark:text-white">{{ $label['title'] }}</p>
+                            <p class="text-sm font-bold text-zinc-900 dark:text-white">{{ $label['title'] }}</p>
                             <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ $label['text'] }}</p>
                         </div>
 

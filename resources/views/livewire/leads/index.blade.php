@@ -50,7 +50,7 @@ new class extends Component {
 <section class="w-full">
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
-            <flux:heading size="xl">{{ __('Leads') }}</flux:heading>
+            <flux:heading size="xl" class="tracking-tight">{{ __('Leads') }}</flux:heading>
             <flux:subheading>{{ __('Everyone who left an email address — including partial responses.') }}</flux:subheading>
         </div>
 
@@ -75,41 +75,43 @@ new class extends Component {
             </flux:subheading>
         </div>
     @else
-        <div class="mt-6 overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
-            <table class="w-full min-w-160 text-sm">
-                <thead class="bg-zinc-50 text-left text-xs font-medium uppercase tracking-wide text-zinc-500 dark:bg-zinc-800/60 dark:text-zinc-400">
-                    <tr>
-                        <th class="px-4 py-3">{{ __('Email') }}</th>
-                        <th class="px-4 py-3">{{ __('Phone') }}</th>
-                        <th class="px-4 py-3">{{ __('Quiz') }}</th>
-                        <th class="px-4 py-3">{{ __('Status') }}</th>
-                        <th class="px-4 py-3">{{ __('Date') }}</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
-                    @foreach ($leads as $lead)
-                        <tr wire:key="lead-{{ $lead->id }}" class="bg-white dark:bg-zinc-900">
-                            <td class="px-4 py-3">
-                                <a href="{{ route('quizzes.responses.show', [$lead->quiz_id, $lead->id]) }}" wire:navigate class="font-medium text-zinc-800 hover:underline dark:text-white">
-                                    {{ $contacts[$lead->id]['email'] ?? '—' }}
-                                </a>
-                            </td>
-                            <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300">{{ $contacts[$lead->id]['phone'] ?? '—' }}</td>
-                            <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300">{{ $lead->quiz?->name }}</td>
-                            <td class="px-4 py-3">
-                                <span @class([
-                                    'rounded-full px-2.5 py-0.5 text-xs font-medium',
-                                    'bg-green-100 text-green-800 dark:bg-green-900/60 dark:text-green-300' => $lead->isCompleted(),
-                                    'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300' => ! $lead->isCompleted(),
-                                ])>
-                                    {{ $lead->isCompleted() ? __('Completed') : __('Partial') }}
-                                </span>
-                            </td>
-                            <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300">{{ $lead->started_at->diffForHumans() }}</td>
+        <div class="mt-6 overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800">
+            <div class="overflow-x-auto">
+                <table class="w-full min-w-160 text-sm">
+                    <thead class="border-b border-zinc-200 bg-zinc-50 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-400">
+                        <tr>
+                            <th class="px-5 py-3">{{ __('Email') }}</th>
+                            <th class="px-5 py-3">{{ __('Phone') }}</th>
+                            <th class="px-5 py-3">{{ __('Quiz') }}</th>
+                            <th class="px-5 py-3">{{ __('Status') }}</th>
+                            <th class="px-5 py-3">{{ __('Date') }}</th>
                         </tr>
-                    @endforeach
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800/70">
+                        @foreach ($leads as $lead)
+                            <tr wire:key="lead-{{ $lead->id }}" class="bg-white dark:bg-zinc-900">
+                                <td class="px-5 py-3.5">
+                                    <a href="{{ route('quizzes.responses.show', [$lead->quiz_id, $lead->id]) }}" wire:navigate class="font-bold text-zinc-900 hover:underline dark:text-white">
+                                        {{ $contacts[$lead->id]['email'] ?? '—' }}
+                                    </a>
+                                </td>
+                                <td class="px-5 py-3.5 font-mono text-zinc-600 dark:text-zinc-300">{{ $contacts[$lead->id]['phone'] ?? '—' }}</td>
+                                <td class="px-5 py-3.5 text-zinc-600 dark:text-zinc-300">{{ $lead->quiz?->name }}</td>
+                                <td class="px-5 py-3.5">
+                                    <span @class([
+                                        'rounded-full border px-2.5 py-0.5 text-xs font-semibold',
+                                        'border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950/60 dark:text-green-300' => $lead->isCompleted(),
+                                        'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-300' => ! $lead->isCompleted(),
+                                    ])>
+                                        {{ $lead->isCompleted() ? __('Completed') : __('Partial') }}
+                                    </span>
+                                </td>
+                                <td class="px-5 py-3.5 text-zinc-600 dark:text-zinc-300">{{ $lead->started_at->diffForHumans() }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div class="mt-4">

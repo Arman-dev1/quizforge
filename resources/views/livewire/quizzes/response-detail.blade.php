@@ -73,22 +73,22 @@ new class extends Component {
 <section class="mx-auto w-full max-w-3xl">
     <div class="flex flex-wrap items-start justify-between gap-4">
         <div class="min-w-0">
-            <a href="{{ route('quizzes.responses', $quiz) }}" wire:navigate class="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200">
+            <a href="{{ route('quizzes.responses', $quiz) }}" wire:navigate class="flex items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200">
                 <flux:icon.arrow-left class="size-3.5" />
                 {{ __('All responses') }}
             </a>
 
             <div class="mt-1 flex items-center gap-3">
-                <flux:heading size="xl">{{ __('Response #:id', ['id' => $response->id]) }}</flux:heading>
+                <flux:heading size="xl" class="tracking-tight">{{ __('Response #:id', ['id' => $response->id]) }}</flux:heading>
                 <span @class([
-                    'rounded-full px-2.5 py-0.5 text-xs font-medium',
-                    'bg-green-100 text-green-800 dark:bg-green-900/60 dark:text-green-300' => $response->isCompleted(),
-                    'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300' => ! $response->isCompleted(),
+                    'rounded-full border px-2.5 py-0.5 text-xs font-semibold',
+                    'border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950/60 dark:text-green-300' => $response->isCompleted(),
+                    'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-300' => ! $response->isCompleted(),
                 ])>
                     {{ $response->isCompleted() ? __('Completed') : __('Partial') }}
                 </span>
                 @if ($response->trashed())
-                    <span class="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900/60 dark:text-red-300">
+                    <span class="rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 dark:border-red-900 dark:bg-red-950/60 dark:text-red-300">
                         {{ __('Trashed') }}
                     </span>
                 @endif
@@ -115,7 +115,7 @@ new class extends Component {
     </div>
 
     @if ($scored)
-        <div class="mt-6 flex flex-wrap items-center gap-6 rounded-xl border border-zinc-200 p-5 dark:border-zinc-700">
+        <div class="mt-6 flex flex-wrap items-center gap-6 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
             <div>
                 <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ __('Score') }}</p>
                 <p class="mt-1 text-2xl font-semibold text-zinc-900 dark:text-white">
@@ -142,11 +142,11 @@ new class extends Component {
         </div>
     @endif
 
-    <div class="mt-6 divide-y divide-zinc-200 rounded-xl border border-zinc-200 dark:divide-zinc-700 dark:border-zinc-700">
+    <div class="mt-4 divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:divide-zinc-800/70 dark:border-zinc-800 dark:bg-zinc-900">
         @foreach ($rows as $row)
-            <div class="p-4">
-                <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ $row['title'] }}</p>
-                <p class="mt-1 whitespace-pre-line text-sm text-zinc-800 dark:text-zinc-200">
+            <div class="px-5 py-4">
+                <p class="font-mono text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ $row['title'] }}</p>
+                <p class="mt-1.5 whitespace-pre-line text-sm text-zinc-800 dark:text-zinc-200">
                     {{ $row['value'] !== '' ? $row['value'] : '—' }}
                 </p>
             </div>
@@ -154,7 +154,7 @@ new class extends Component {
     </div>
 
     @if ($canManage)
-        <div class="mt-6">
+        <div class="mt-4 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
             <flux:textarea
                 wire:model.blur="notes"
                 label="{{ __('Internal notes') }}"

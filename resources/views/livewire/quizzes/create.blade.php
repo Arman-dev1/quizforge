@@ -90,7 +90,7 @@ new class extends Component {
 
 <section class="mx-auto w-full max-w-4xl">
     <div>
-        <flux:heading size="xl">{{ __('Create a new quiz') }}</flux:heading>
+        <flux:heading size="xl" class="tracking-tight">{{ __('Create a new quiz') }}</flux:heading>
         <flux:subheading>{{ __('Start from a ready-made template or build from scratch.') }}</flux:subheading>
     </div>
 
@@ -122,7 +122,7 @@ new class extends Component {
 
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         @foreach ($templates as $template)
-                            <div class="flex flex-col rounded-xl border border-zinc-200 p-4 transition hover:border-teal-300 dark:border-zinc-700 dark:hover:border-teal-800" wire:key="template-{{ $template->id }}">
+                            <div class="flex flex-col rounded-2xl border border-zinc-200 bg-white p-4 transition hover:border-teal-300 hover:shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-teal-800" wire:key="template-{{ $template->id }}">
                                 <div class="flex items-start justify-between gap-2">
                                     <p class="text-sm font-semibold text-zinc-900 dark:text-white">{{ $template->name }}</p>
                                     @unless ($template->isGlobal())

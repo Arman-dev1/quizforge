@@ -104,7 +104,7 @@ new class extends Component {
 <section class="w-full">
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
-            <flux:heading size="xl">{{ __('Quizzes') }}</flux:heading>
+            <flux:heading size="xl" class="tracking-tight">{{ __('Quizzes') }}</flux:heading>
             <flux:subheading>{{ __('Everything in :name', ['name' => auth()->user()->currentWorkspace->name]) }}</flux:subheading>
         </div>
 
@@ -147,7 +147,7 @@ new class extends Component {
     @enderror
 
     @if ($canManage && ! $canCreate)
-        <div class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-teal-200 bg-teal-50 p-4 dark:border-teal-900 dark:bg-teal-950/40">
+        <div class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-teal-200 bg-teal-50 p-4 dark:border-teal-900 dark:bg-teal-950/40">
             <p class="text-sm text-teal-800 dark:text-teal-300">
                 {{ __('You have reached your plan\'s quiz limit.') }}
             </p>
@@ -176,15 +176,15 @@ new class extends Component {
             @endif
         </div>
     @else
-        <ul class="mt-6 divide-y divide-zinc-200 rounded-xl border border-zinc-200 dark:divide-zinc-700 dark:border-zinc-700">
+        <ul class="mt-6 divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:divide-zinc-800/70 dark:border-zinc-800 dark:bg-zinc-900">
             @foreach ($quizzes as $quiz)
-                <li class="flex items-center gap-4 p-4" wire:key="quiz-{{ $quiz->id }}">
-                    <span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800">
-                        <flux:icon :icon="$quiz->type->icon()" class="size-5 text-zinc-500 dark:text-zinc-400" />
+                <li class="flex items-center gap-4 px-5 py-3.5 transition hover:bg-zinc-50 dark:hover:bg-zinc-800/40" wire:key="quiz-{{ $quiz->id }}">
+                    <span class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-600 dark:bg-teal-950/60 dark:text-teal-400">
+                        <flux:icon :icon="$quiz->type->icon()" class="size-5" />
                     </span>
 
                     <div class="min-w-0 flex-1">
-                        <a href="{{ route('quizzes.show', $quiz) }}" wire:navigate class="block truncate text-sm font-medium text-zinc-800 hover:underline dark:text-white">
+                        <a href="{{ route('quizzes.show', $quiz) }}" wire:navigate class="block truncate text-sm font-bold text-zinc-900 hover:underline dark:text-white">
                             {{ $quiz->name }}
                         </a>
                         <p class="truncate text-xs text-zinc-500 dark:text-zinc-400">
@@ -194,7 +194,7 @@ new class extends Component {
                         </p>
                     </div>
 
-                    <span class="rounded-full px-2.5 py-0.5 text-xs font-medium {{ $quiz->status->badgeClasses() }}">
+                    <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $quiz->status->badgeClasses() }}">
                         {{ $quiz->status->label() }}
                     </span>
 
