@@ -186,10 +186,15 @@ new class extends Component {
 }; ?>
 
 <section class="mx-auto w-full max-w-3xl">
+    <a href="{{ route('quizzes.index') }}" wire:navigate class="mb-4 flex w-fit items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200">
+        <flux:icon.arrow-left class="size-3.5" />
+        {{ __('Back to quizzes') }}
+    </a>
+
     <div class="flex flex-wrap items-start justify-between gap-4">
         <div class="min-w-0">
             <div class="flex items-center gap-3">
-                <flux:heading size="xl" class="truncate">{{ $quiz->name }}</flux:heading>
+                <flux:heading size="xl" class="truncate tracking-tight">{{ $quiz->name }}</flux:heading>
                 <span class="rounded-full px-2.5 py-0.5 text-xs font-medium {{ $quiz->status->badgeClasses() }}">
                     {{ $quiz->status->label() }}
                 </span>
@@ -246,41 +251,43 @@ new class extends Component {
     @enderror
 
     @if ($canEdit)
-        <form wire:submit="updateDetails" class="mt-8 max-w-lg space-y-6">
-            <flux:input
-                wire:model="name"
-                label="{{ __('Name') }}"
-                type="text"
-                required
-            />
+        <div class="mt-8 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+            <form wire:submit="updateDetails" class="max-w-lg space-y-6">
+                <flux:input
+                    wire:model="name"
+                    label="{{ __('Name') }}"
+                    type="text"
+                    required
+                />
 
-            <flux:textarea
-                wire:model="description"
-                label="{{ __('Description') }}"
-                rows="3"
-                placeholder="{{ __('Internal notes about this quiz (optional)') }}"
-            />
+                <flux:textarea
+                    wire:model="description"
+                    label="{{ __('Description') }}"
+                    rows="3"
+                    placeholder="{{ __('Internal notes about this quiz (optional)') }}"
+                />
 
-            <flux:input
-                value="{{ $quiz->slug }}"
-                label="{{ __('Public link') }}"
-                type="text"
-                disabled
-                description="{{ __('Your quiz will be available at /q/:slug once published.', ['slug' => $quiz->slug]) }}"
-            />
+                <flux:input
+                    value="{{ $quiz->slug }}"
+                    label="{{ __('Public link') }}"
+                    type="text"
+                    disabled
+                    description="{{ __('Your quiz will be available at /q/:slug once published.', ['slug' => $quiz->slug]) }}"
+                />
 
-            <div class="flex items-center gap-4">
-                <flux:button variant="primary" type="submit">{{ __('Save') }}</flux:button>
+                <div class="flex items-center gap-4">
+                    <flux:button variant="primary" type="submit">{{ __('Save changes') }}</flux:button>
 
-                <x-action-message class="me-3" on="quiz-updated">
-                    {{ __('Saved.') }}
-                </x-action-message>
-            </div>
-        </form>
+                    <x-action-message class="me-3" on="quiz-updated">
+                        {{ __('Saved.') }}
+                    </x-action-message>
+                </div>
+            </form>
+        </div>
     @endif
 
     @if ($canEdit)
-        <div class="mt-10 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
+        <div class="mt-4 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
             <div class="flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <flux:heading>{{ __('Sharing') }}</flux:heading>
@@ -337,7 +344,7 @@ new class extends Component {
     @endif
 
     @if ($canEdit)
-        <div class="mt-10 rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
+        <div class="mt-4 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
             <flux:heading>{{ __('Scoring & results') }}</flux:heading>
             <flux:subheading>{{ __('Grade responses and control what respondents see when they finish.') }}</flux:subheading>
 
@@ -393,7 +400,7 @@ new class extends Component {
         </div>
     @endif
 
-    <div class="mt-10 flex items-center justify-between rounded-xl border border-zinc-200 p-6 dark:border-zinc-700">
+    <div class="mt-4 flex items-center justify-between rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
         <div>
             <flux:heading>{{ __('Questions') }}</flux:heading>
             <flux:subheading>

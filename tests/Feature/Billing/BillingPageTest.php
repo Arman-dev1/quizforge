@@ -28,7 +28,8 @@ class BillingPageTest extends TestCase
         $this->actingAs($owner)
             ->get(route('settings.billing'))
             ->assertOk()
-            ->assertSee(__('Current plan: :plan', ['plan' => 'Free']))
+            ->assertSee(__(':plan plan', ['plan' => 'Free']))
+            ->assertSee(__('Usage this month'))
             ->assertSee(__('Responses this month'))
             ->assertSee('Pro')
             ->assertSee('Scale');

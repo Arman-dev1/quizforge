@@ -101,102 +101,121 @@ new class extends Component {
             <flux:text class="mt-4 text-sm text-red-600 dark:text-red-400">{{ $message }}</flux:text>
         @enderror
 
-        {{-- Current subscription state --}}
-        <div class="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-            <div>
-                <p class="text-sm font-semibold text-zinc-900 dark:text-white">
-                    {{ __('Current plan: :plan', ['plan' => $plans[$planKey]['name']]) }}
-                </p>
-                @if ($subscription?->onGracePeriod())
-                    <p class="text-xs text-amber-600 dark:text-amber-400">
+        {{-- Current plan banner --}}
+        <div class="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-zinc-900 px-6 py-5 text-white dark:bg-zinc-950">
+            <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                    <span class="text-base font-extrabold">{{ __(':plan plan', ['plan' => $plans[$planKey]['name']]) }}</span>
+                    <span class="rounded-md bg-white/15 px-2 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wide">{{ __('Current') }}</span>
+                </div>
+                <p class="mt-1.5 text-sm text-zinc-400">
+                    @if ($subscription?->onGracePeriod())
                         {{ __('Cancels at the end of the billing period.') }}
-                    </p>
-                @elseif ($subscription?->valid())
-                    <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ __('Subscription active.') }}</p>
-                @else
-                    <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ __('No paid subscription.') }}</p>
-                @endif
+                    @elseif ($subscription?->valid())
+                        {{ __('Subscription active.') }}
+                    @else
+                        {{ __('No paid subscription.') }}
+                    @endif
+                </p>
             </div>
 
             @if ($subscription?->onGracePeriod())
                 <flux:button wire:click="resume" variant="primary" size="sm">{{ __('Keep subscription') }}</flux:button>
             @elseif ($subscription?->valid())
-                <flux:button
-                    wire:click="cancel"
-                    wire:confirm="{{ __('Cancel your subscription? You keep access until the period ends.') }}"
-                    variant="filled"
-                    size="sm"
-                >
+                <button wire:click="cancel" wire:confirm="{{ __('Cancel your subscription? You keep access until the period ends.') }}" class="rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20">
                     {{ __('Cancel subscription') }}
-                </flux:button>
+                </button>
+            @else
+                <a href="#plans" class="rounded-lg bg-teal-500 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-teal-600">
+                    {{ __('Upgrade to Pro') }}
+                </a>
             @endif
         </div>
 
-        {{-- Usage meters --}}
-        <div class="mt-4 space-y-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-            @foreach ($usage as $key => $meter)
-                @php
-                    $limit = $meter['limit'];
-                    $pct = $limit ? min(100, (int) round($meter['used'] / max($limit, 1) * 100)) : 0;
-                @endphp
-                <div wire:key="usage-{{ $key }}">
-                    <div class="flex items-baseline justify-between gap-3 text-sm">
-                        <span class="text-zinc-700 dark:text-zinc-300">{{ $usageLabels[$key] }}</span>
-                        <span class="tabular-nums text-zinc-500 dark:text-zinc-400">
-                            {{ number_format($meter['used']) }} / {{ $limit === null ? __('Unlimited') : number_format($limit) }}
-                        </span>
-                    </div>
-                    @if ($limit !== null)
-                        <div class="mt-1 h-2.5 w-full rounded-full bg-zinc-100 dark:bg-zinc-800">
-                            <div @class(['h-full rounded-full', 'bg-teal-600' => $pct < 100, 'bg-red-600' => $pct >= 100]) style="width: {{ $pct }}%"></div>
+        {{-- Usage this month --}}
+        <div class="mt-4 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+            <h3 class="text-sm font-bold text-zinc-900 dark:text-white">{{ __('Usage this month') }}</h3>
+            <div class="mt-4 space-y-4">
+                @foreach ($usage as $key => $meter)
+                    @php
+                        $limit = $meter['limit'];
+                        $pct = $limit ? min(100, (int) round($meter['used'] / max($limit, 1) * 100)) : 0;
+                        $over = $limit !== null && $meter['used'] >= $limit;
+                    @endphp
+                    <div wire:key="usage-{{ $key }}">
+                        <div class="mb-1.5 flex items-baseline justify-between gap-3 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                            <span>{{ $usageLabels[$key] }}</span>
+                            <span class="font-mono {{ $over ? 'text-red-600 dark:text-red-400' : 'text-zinc-400' }}">
+                                {{ number_format($meter['used']) }} / {{ $limit === null ? __('Unlimited') : number_format($limit) }}
+                            </span>
                         </div>
-                    @endif
-                </div>
-            @endforeach
+                        @if ($limit !== null)
+                            <div class="h-2 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+                                <div @class(['h-full rounded-full', 'bg-teal-500' => ! $over, 'bg-red-500' => $over]) style="width: {{ $pct }}%"></div>
+                            </div>
+                        @endif
+                    </div>
+                @endforeach
+            </div>
         </div>
 
         @unless ($configured)
-            <div class="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-300">
+            <div class="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-300">
                 {{ __('Checkout is not configured yet. Add your Paddle keys (PADDLE_SELLER_ID, PADDLE_API_KEY, PADDLE_CLIENT_SIDE_TOKEN, PADDLE_PRICE_PRO, PADDLE_PRICE_SCALE) to the .env file to enable upgrades.') }}
             </div>
         @endunless
 
         {{-- Plans --}}
-        <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div id="plans" class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
             @foreach ($plans as $key => $plan)
+                @php $popular = $key === 'pro'; @endphp
                 <div @class([
-                    'flex flex-col rounded-xl border p-4',
-                    'border-teal-500 ring-1 ring-teal-500' => $key === $planKey,
-                    'border-zinc-200 dark:border-zinc-700' => $key !== $planKey,
+                    'relative flex flex-col rounded-2xl bg-white p-5 dark:bg-zinc-900',
+                    'border-2 border-teal-500 shadow-lg shadow-teal-500/20' => $popular,
+                    'border border-zinc-200 dark:border-zinc-800' => ! $popular,
                 ]) wire:key="plan-{{ $key }}">
+                    @if ($popular)
+                        <span class="absolute -top-2.5 left-5 rounded-full bg-teal-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                            {{ __('Most popular') }}
+                        </span>
+                    @endif
+
                     <div class="flex items-center justify-between">
-                        <p class="text-sm font-semibold text-zinc-900 dark:text-white">{{ $plan['name'] }}</p>
+                        <p class="text-sm font-bold text-zinc-900 dark:text-white">{{ $plan['name'] }}</p>
                         @if ($key === $planKey)
-                            <span class="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-800 dark:bg-teal-950/60 dark:text-teal-300">
+                            <span class="rounded-md bg-teal-50 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase text-teal-600 dark:bg-teal-950/60 dark:text-teal-400">
                                 {{ __('Current') }}
                             </span>
                         @endif
                     </div>
 
-                    <p class="mt-2 text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
+                    <p class="mt-2 text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white">
                         ${{ $plan['price'] }}<span class="text-sm font-normal text-zinc-400">/mo</span>
                     </p>
                     <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ $plan['tagline'] }}</p>
 
-                    <ul class="mt-3 flex-1 space-y-1 text-xs text-zinc-600 dark:text-zinc-300">
-                        <li>{{ $plan['limits']['quizzes'] === null ? __('Unlimited quizzes') : trans_choice(':count quiz|:count quizzes', $plan['limits']['quizzes'], ['count' => $plan['limits']['quizzes']]) }}</li>
-                        <li>{{ __(':count responses / month', ['count' => number_format($plan['limits']['responses_per_month'])]) }}</li>
-                        <li>{{ $plan['limits']['members'] === null ? __('Unlimited team members') : trans_choice(':count team member|:count team members', $plan['limits']['members'], ['count' => $plan['limits']['members']]) }}</li>
+                    <ul class="mt-4 flex-1 space-y-2.5 text-xs text-zinc-600 dark:text-zinc-300">
+                        <li class="flex items-center gap-2"><flux:icon.check class="size-4 text-teal-600 dark:text-teal-400" />{{ $plan['limits']['quizzes'] === null ? __('Unlimited quizzes') : trans_choice(':count quiz|:count quizzes', $plan['limits']['quizzes'], ['count' => $plan['limits']['quizzes']]) }}</li>
+                        <li class="flex items-center gap-2"><flux:icon.check class="size-4 text-teal-600 dark:text-teal-400" />{{ __(':count responses / month', ['count' => number_format($plan['limits']['responses_per_month'])]) }}</li>
+                        <li class="flex items-center gap-2"><flux:icon.check class="size-4 text-teal-600 dark:text-teal-400" />{{ $plan['limits']['members'] === null ? __('Unlimited team members') : trans_choice(':count team member|:count team members', $plan['limits']['members'], ['count' => $plan['limits']['members']]) }}</li>
                     </ul>
 
-                    @if ($key !== $planKey && $plan['price'] > 0)
-                        <div class="mt-4">
+                    @if ($key === $planKey)
+                        <div class="mt-5">
+                            <flux:button variant="filled" size="sm" disabled class="w-full">{{ __('Current plan') }}</flux:button>
+                        </div>
+                    @elseif ($plan['price'] > 0)
+                        <div class="mt-5">
                             @if (isset($checkouts[$key]))
-                                <x-paddle-button :checkout="$checkouts[$key]" class="w-full rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800">
+                                <x-paddle-button :checkout="$checkouts[$key]" @class([
+                                    'block w-full rounded-lg px-4 py-2.5 text-center text-sm font-bold',
+                                    'bg-teal-500 text-white hover:bg-teal-600' => $popular,
+                                    'border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white' => ! $popular,
+                                ])>
                                     {{ __('Upgrade to :plan', ['plan' => $plan['name']]) }}
                                 </x-paddle-button>
                             @else
-                                <flux:button variant="filled" size="sm" disabled class="w-full">
+                                <flux:button :variant="$popular ? 'primary' : 'filled'" size="sm" disabled class="w-full">
                                     {{ __('Checkout unavailable') }}
                                 </flux:button>
                             @endif

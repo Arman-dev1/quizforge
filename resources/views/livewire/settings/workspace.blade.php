@@ -91,46 +91,48 @@ new class extends Component {
     @include('partials.settings-heading')
 
     <x-settings.layout heading="{{ __('Workspace') }}" subheading="{{ __('Manage your current workspace') }}">
-        <form wire:submit="updateName" class="mt-6 space-y-6">
-            <flux:input
-                wire:model="name"
-                label="{{ __('Workspace name') }}"
-                type="text"
-                required
-                :disabled="! $canUpdate"
-            />
+        <div class="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+            <flux:heading>{{ __('Workspace') }}</flux:heading>
+            <flux:subheading>{{ __('Manage your current workspace.') }}</flux:subheading>
 
-            <flux:input
-                value="{{ $workspace->slug }}"
-                label="{{ __('Workspace URL slug') }}"
-                type="text"
-                disabled
-            />
+            <form wire:submit="updateName" class="mt-5 space-y-6">
+                <flux:input
+                    wire:model="name"
+                    label="{{ __('Workspace name') }}"
+                    type="text"
+                    required
+                    :disabled="! $canUpdate"
+                />
 
-            @if ($canUpdate)
-                <div class="flex items-center gap-4">
-                    <flux:button variant="primary" type="submit">{{ __('Save') }}</flux:button>
+                <flux:input
+                    value="{{ $workspace->slug }}"
+                    label="{{ __('Workspace URL slug') }}"
+                    type="text"
+                    disabled
+                />
 
-                    <x-action-message class="me-3" on="workspace-updated">
-                        {{ __('Saved.') }}
-                    </x-action-message>
-                </div>
-            @endif
-        </form>
+                @if ($canUpdate)
+                    <div class="flex items-center gap-4">
+                        <flux:button variant="primary" type="submit">{{ __('Save') }}</flux:button>
 
-        <flux:separator class="my-8" />
+                        <x-action-message class="me-3" on="workspace-updated">
+                            {{ __('Saved.') }}
+                        </x-action-message>
+                    </div>
+                @endif
+            </form>
+        </div>
 
-        <div class="space-y-4">
-            <div>
-                <flux:heading>{{ __('Leave workspace') }}</flux:heading>
-                <flux:subheading>{{ __('You will lose access to everything in this workspace.') }}</flux:subheading>
-            </div>
+        <div class="mt-4 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+            <flux:heading>{{ __('Leave workspace') }}</flux:heading>
+            <flux:subheading>{{ __('You will lose access to everything in this workspace.') }}</flux:subheading>
 
             @error('leave')
-                <flux:text class="text-red-600 dark:text-red-400">{{ $message }}</flux:text>
+                <flux:text class="mt-2 text-red-600 dark:text-red-400">{{ $message }}</flux:text>
             @enderror
 
             <flux:button
+                class="mt-4"
                 variant="filled"
                 wire:click="leave"
                 wire:confirm="{{ __('Are you sure you want to leave this workspace?') }}"
@@ -140,10 +142,8 @@ new class extends Component {
         </div>
 
         @if ($canDelete)
-            <flux:separator class="my-8" />
-
-            <div class="space-y-4">
-                <div>
+            <div class="mt-4 rounded-2xl border border-red-200 bg-white p-6 dark:border-red-900/60 dark:bg-zinc-900">
+                <div class="mb-4">
                     <flux:heading class="text-red-600 dark:text-red-400">{{ __('Danger zone') }}</flux:heading>
                     <flux:subheading>{{ __('Deleting a workspace removes all of its quizzes, responses, and leads.') }}</flux:subheading>
                 </div>
