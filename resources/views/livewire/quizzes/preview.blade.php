@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use App\Models\Quiz;
 use Livewire\Attributes\Layout;
@@ -64,7 +64,7 @@ new #[Layout('components.layouts.player')] class extends Component {
             aria-valuemax="100"
             aria-label="{{ __('Quiz progress') }}"
         >
-            <div class="h-full bg-gradient-to-r from-orange-500 to-red-600 transition-all duration-300" style="width: {{ $progress }}%"></div>
+            <div class="h-full bg-gradient-to-r from-teal-400 to-teal-500 transition-all duration-300" style="width: {{ $progress }}%"></div>
         </div>
     @endif
 

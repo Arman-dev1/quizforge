@@ -9,37 +9,39 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Manrope', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
     /*
-     | QuizForge "Ember & Stone" neutrals — the app was scaffolded with zinc-*
-     | utility classes, so we point the zinc scale at stone values: warm
-     | bone/oatmeal grays in light mode and smoky, coffee-black dark surfaces.
+     | QuizForge "Clean Slate" neutrals — the app was scaffolded with zinc-*
+     | utility classes, so we point the zinc scale at the cool-gray values
+     | used across the Clean Slate mockups: airy neutral surfaces in light
+     | mode, calm graphite in dark. (#f7f8fa bg, #edeef1 borders, #0f1115 ink.)
      */
-    --color-zinc-50: #fafaf9;
-    --color-zinc-100: #f5f5f4;
-    --color-zinc-200: #e7e5e4;
-    --color-zinc-300: #d6d3d1;
-    --color-zinc-400: #a8a29e;
-    --color-zinc-500: #78716c;
-    --color-zinc-600: #57534e;
-    --color-zinc-700: #44403c;
-    --color-zinc-800: #292524;
-    --color-zinc-900: #1c1917;
-    --color-zinc-950: #0c0a09;
+    --color-zinc-50: #f7f8fa;
+    --color-zinc-100: #f0f1f3;
+    --color-zinc-200: #edeef1;
+    --color-zinc-300: #d4d8e0;
+    --color-zinc-400: #a2a8b4;
+    --color-zinc-500: #9096a2;
+    --color-zinc-600: #6b7280;
+    --color-zinc-700: #4b5060;
+    --color-zinc-800: #272b34;
+    --color-zinc-900: #0f1115;
+    --color-zinc-950: #08090c;
 
-    /* Brand accent — burnt copper/flame, WCAG AA on white at orange-700 */
-    --color-accent: var(--color-orange-700);
-    --color-accent-content: var(--color-orange-700);
+    /* Brand accent — teal ("Clean Slate"), matching the #14b8a6 mockups */
+    --color-accent: var(--color-teal-500);
+    --color-accent-content: var(--color-teal-600);
     --color-accent-foreground: var(--color-white);
 }
 
 @layer theme {
     .dark {
-        /* Amber ember on smoky black; dark foreground keeps button text readable */
-        --color-accent: var(--color-orange-400);
-        --color-accent-content: var(--color-orange-400);
-        --color-accent-foreground: var(--color-orange-950);
+        /* Bright teal on graphite; dark foreground keeps button text readable */
+        --color-accent: var(--color-teal-400);
+        --color-accent-content: var(--color-teal-400);
+        --color-accent-foreground: var(--color-teal-950);
     }
 }
 
@@ -54,12 +56,12 @@
     }
 
     ::selection {
-        background-color: var(--color-orange-200);
-        color: var(--color-orange-950);
+        background-color: var(--color-teal-200);
+        color: var(--color-teal-950);
     }
 
     .dark ::selection {
-        background-color: var(--color-orange-800);
+        background-color: var(--color-teal-800);
         color: var(--color-white);
     }
 }

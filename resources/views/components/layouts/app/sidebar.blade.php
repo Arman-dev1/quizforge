@@ -4,7 +4,7 @@
         @include('partials.head')
     </head>
     <body class="min-h-screen bg-white dark:bg-zinc-800">
-        <flux:sidebar sticky stashable class="border-r border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
+        <flux:sidebar sticky stashable class="border-r border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
             <flux:sidebar.toggle class="lg:hidden" icon="x-mark" />
 
             <a href="{{ route('dashboard') }}" class="mr-5 flex items-center space-x-2" wire:navigate>
@@ -27,6 +27,32 @@
             </flux:navlist>
 
             <flux:spacer />
+
+            {{-- Plan usage + upgrade (Clean Slate) --}}
+            @php
+                $usageWorkspace = auth()->user()->currentWorkspace;
+                $usageLimits = app(\App\Services\Billing\UsageLimits::class);
+                $usageQuizLimit = $usageWorkspace ? $usageLimits->limit($usageWorkspace, 'quizzes') : null;
+            @endphp
+            @if ($usageWorkspace && $usageQuizLimit !== null)
+                @php
+                    $usageQuizUsed = $usageLimits->quizCount($usageWorkspace);
+                    $usagePct = min(100, (int) round($usageQuizUsed / max($usageQuizLimit, 1) * 100));
+                    $usageOver = $usageQuizUsed >= $usageQuizLimit;
+                @endphp
+                <div class="mb-2 rounded-xl border border-teal-100 bg-teal-50 p-3.5 dark:border-teal-900/60 dark:bg-teal-950/40">
+                    <div class="mb-2 flex items-center justify-between text-xs font-semibold text-zinc-700 dark:text-zinc-200">
+                        {{ __('Quizzes') }}
+                        <span class="{{ $usageOver ? 'text-red-600 dark:text-red-400' : 'text-teal-600 dark:text-teal-400' }}">{{ $usageQuizUsed }} / {{ $usageQuizLimit }}</span>
+                    </div>
+                    <div class="h-1.5 overflow-hidden rounded-full bg-teal-100 dark:bg-teal-900/60">
+                        <div class="h-full {{ $usageOver ? 'bg-red-500' : 'bg-teal-500' }}" style="width: {{ $usagePct }}%"></div>
+                    </div>
+                    <flux:button :href="route('settings.billing')" wire:navigate variant="primary" size="sm" class="mt-3 w-full">
+                        {{ __('Upgrade plan') }}
+                    </flux:button>
+                </div>
+            @endif
 
             <!-- Desktop User Menu -->
             <flux:dropdown position="bottom" align="start">

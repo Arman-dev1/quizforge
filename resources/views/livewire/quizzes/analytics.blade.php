@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use App\Models\Quiz;
 use App\Services\Analytics\QuizAnalytics;
@@ -83,7 +83,7 @@ new class extends Component {
                                 </span>
                             </div>
                             <div class="mt-1 h-2.5 w-full rounded-full bg-zinc-100 dark:bg-zinc-800" role="img" aria-label="{{ __(':title reached by :rate% of starters', ['title' => $stage['title'], 'rate' => $stage['rate']]) }}">
-                                <div class="h-full rounded-full bg-orange-600" style="width: {{ $stage['rate'] }}%"></div>
+                                <div class="h-full rounded-full bg-teal-600" style="width: {{ $stage['rate'] }}%"></div>
                             </div>
                         </div>
                     @endforeach
@@ -122,7 +122,7 @@ new class extends Component {
                                         </span>
                                     </div>
                                     <div class="mt-1 h-2.5 w-full rounded-full bg-zinc-100 dark:bg-zinc-800">
-                                        <div class="h-full rounded-full bg-orange-600" style="width: {{ $row['pct'] }}%"></div>
+                                        <div class="h-full rounded-full bg-teal-600" style="width: {{ $row['pct'] }}%"></div>
                                     </div>
                                 </div>
                             @endforeach

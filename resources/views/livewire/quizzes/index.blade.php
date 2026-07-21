@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use App\Enums\QuizStatus;
 use App\Enums\QuizType;
@@ -147,8 +147,8 @@ new class extends Component {
     @enderror
 
     @if ($canManage && ! $canCreate)
-        <div class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-orange-200 bg-orange-50 p-4 dark:border-orange-900 dark:bg-orange-950/40">
-            <p class="text-sm text-orange-800 dark:text-orange-300">
+        <div class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-teal-200 bg-teal-50 p-4 dark:border-teal-900 dark:bg-teal-950/40">
+            <p class="text-sm text-teal-800 dark:text-teal-300">
                 {{ __('You have reached your plan\'s quiz limit.') }}
             </p>
             <flux:button :href="route('settings.billing')" wire:navigate variant="primary" size="sm">

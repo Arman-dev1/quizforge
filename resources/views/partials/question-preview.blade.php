@@ -1,9 +1,9 @@
-@php
+﻿@php
     use App\Enums\QuestionType;
 
     $settings = $question->settings ?? [];
-    $inputClasses = 'w-full rounded-lg border-zinc-300 bg-white text-sm shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white';
-    $choiceCardClasses = 'flex cursor-pointer items-center gap-3 rounded-xl border border-zinc-200 p-3 transition hover:border-orange-300 hover:bg-orange-50/40 has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50 dark:border-zinc-700 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:has-[:checked]:border-orange-500 dark:has-[:checked]:bg-orange-950/40';
+    $inputClasses = 'w-full rounded-lg border-zinc-300 bg-white text-sm shadow-sm focus:border-teal-500 focus:ring-teal-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white';
+    $choiceCardClasses = 'flex cursor-pointer items-center gap-3 rounded-xl border border-zinc-200 p-3 transition hover:border-teal-300 hover:bg-teal-50/40 has-[:checked]:border-teal-500 has-[:checked]:bg-teal-50 dark:border-zinc-700 dark:hover:border-teal-800 dark:hover:bg-teal-950/20 dark:has-[:checked]:border-teal-500 dark:has-[:checked]:bg-teal-950/40';
     $scaleButtonClasses = 'flex size-10 items-center justify-center rounded-lg border text-sm font-medium transition';
     $fieldName = 'preview-'.$question->id;
 @endphp
@@ -25,7 +25,7 @@
             <div class="space-y-2">
                 @foreach ($question->options as $option)
                     <label class="{{ $choiceCardClasses }}">
-                        <input type="radio" name="{{ $fieldName }}" class="size-4 border-zinc-300 text-orange-600 focus:ring-orange-500 dark:border-zinc-600 dark:bg-zinc-800" />
+                        <input type="radio" name="{{ $fieldName }}" class="size-4 border-zinc-300 text-teal-600 focus:ring-teal-500 dark:border-zinc-600 dark:bg-zinc-800" />
                         <span class="text-sm text-zinc-800 dark:text-zinc-200">{{ $option->label }}</span>
                     </label>
                 @endforeach
@@ -34,7 +34,7 @@
             <div class="space-y-2">
                 @foreach ($question->options as $option)
                     <label class="{{ $choiceCardClasses }}">
-                        <input type="checkbox" name="{{ $fieldName }}[]" class="size-4 rounded border-zinc-300 text-orange-600 focus:ring-orange-500 dark:border-zinc-600 dark:bg-zinc-800" />
+                        <input type="checkbox" name="{{ $fieldName }}[]" class="size-4 rounded border-zinc-300 text-teal-600 focus:ring-teal-500 dark:border-zinc-600 dark:bg-zinc-800" />
                         <span class="text-sm text-zinc-800 dark:text-zinc-200">{{ $option->label }}</span>
                     </label>
                 @endforeach
@@ -49,7 +49,7 @@
         @elseif ($question->type === QuestionType::ImageChoice)
             <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 @foreach ($question->options as $option)
-                    <label class="cursor-pointer rounded-xl border border-zinc-200 p-2 text-center transition hover:border-orange-300 has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50 dark:border-zinc-700 dark:has-[:checked]:bg-orange-950/40">
+                    <label class="cursor-pointer rounded-xl border border-zinc-200 p-2 text-center transition hover:border-teal-300 has-[:checked]:border-teal-500 has-[:checked]:bg-teal-50 dark:border-zinc-700 dark:has-[:checked]:bg-teal-950/40">
                         <input type="radio" name="{{ $fieldName }}" class="sr-only" />
                         <span class="flex aspect-video items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800">
                             <flux:icon.photo class="size-6 text-zinc-400" />
@@ -128,7 +128,7 @@
                         <button
                             type="button"
                             x-on:click="value = {{ $i }}"
-                            x-bind:class="value === {{ $i }} ? 'border-orange-500 bg-orange-600 text-white' : 'border-zinc-200 text-zinc-700 hover:border-orange-300 dark:border-zinc-700 dark:text-zinc-300'"
+                            x-bind:class="value === {{ $i }} ? 'border-teal-500 bg-teal-600 text-white' : 'border-zinc-200 text-zinc-700 hover:border-teal-300 dark:border-zinc-700 dark:text-zinc-300'"
                             class="{{ $scaleButtonClasses }}"
                         >{{ $i }}</button>
                     @endfor
@@ -147,7 +147,7 @@
                         <button
                             type="button"
                             x-on:click="value = {{ $i }}"
-                            x-bind:class="value === {{ $i }} ? 'border-orange-500 bg-orange-600 text-white' : 'border-zinc-200 text-zinc-700 hover:border-orange-300 dark:border-zinc-700 dark:text-zinc-300'"
+                            x-bind:class="value === {{ $i }} ? 'border-teal-500 bg-teal-600 text-white' : 'border-zinc-200 text-zinc-700 hover:border-teal-300 dark:border-zinc-700 dark:text-zinc-300'"
                             class="{{ $scaleButtonClasses }} size-9"
                         >{{ $i }}</button>
                     @endfor
@@ -187,7 +187,7 @@
                                 <td class="p-2 text-zinc-700 dark:text-zinc-300">{{ $row }}</td>
                                 @foreach ($columns as $column)
                                     <td class="p-2 text-center">
-                                        <input type="radio" name="{{ $fieldName }}-{{ $rowIndex }}" class="size-4 border-zinc-300 text-orange-600 focus:ring-orange-500 dark:border-zinc-600 dark:bg-zinc-800" />
+                                        <input type="radio" name="{{ $fieldName }}-{{ $rowIndex }}" class="size-4 border-zinc-300 text-teal-600 focus:ring-teal-500 dark:border-zinc-600 dark:bg-zinc-800" />
                                     </td>
                                 @endforeach
                             </tr>

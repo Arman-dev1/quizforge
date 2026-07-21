@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use App\Models\Quiz;
 use App\Models\QuizResponse;
@@ -135,7 +135,7 @@ new class extends Component {
             @endif
 
             @if ($response->grade)
-                <span class="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-800 dark:bg-orange-950/60 dark:text-orange-300">
+                <span class="rounded-full bg-teal-100 px-3 py-1 text-xs font-semibold text-teal-800 dark:bg-teal-950/60 dark:text-teal-300">
                     {{ $response->grade }}
                 </span>
             @endif

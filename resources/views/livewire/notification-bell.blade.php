@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Support\Facades\Auth;
 use Livewire\Volt\Component;
@@ -36,7 +36,7 @@ new class extends Component {
         >
             <flux:icon.bell class="size-5" />
             @if ($unreadCount > 0)
-                <span class="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-orange-600 px-1 text-[10px] font-bold leading-4 text-white">
+                <span class="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-teal-600 px-1 text-[10px] font-bold leading-4 text-white">
                     {{ $unreadCount > 9 ? '9+' : $unreadCount }}
                 </span>
             @endif
@@ -46,7 +46,7 @@ new class extends Component {
             <div class="flex items-center justify-between px-2 py-1.5">
                 <p class="text-sm font-semibold text-zinc-800 dark:text-white">{{ __('Notifications') }}</p>
                 @if ($unreadCount > 0)
-                    <button type="button" wire:click="markAllRead" class="text-xs text-orange-700 hover:underline dark:text-orange-400">
+                    <button type="button" wire:click="markAllRead" class="text-xs text-teal-700 hover:underline dark:text-teal-400">
                         {{ __('Mark all read') }}
                     </button>
                 @endif
@@ -63,12 +63,12 @@ new class extends Component {
                 >
                     <span @class([
                         'mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg',
-                        'bg-orange-50 dark:bg-orange-950/60' => $notification->unread(),
+                        'bg-teal-50 dark:bg-teal-950/60' => $notification->unread(),
                         'bg-zinc-100 dark:bg-zinc-800' => ! $notification->unread(),
                     ])>
                         <flux:icon :icon="$notification->data['icon'] ?? 'bell'" @class([
                             'size-4',
-                            'text-orange-600 dark:text-orange-400' => $notification->unread(),
+                            'text-teal-600 dark:text-teal-400' => $notification->unread(),
                             'text-zinc-400' => ! $notification->unread(),
                         ]) />
                     </span>
@@ -83,7 +83,7 @@ new class extends Component {
                         <span class="block text-xs text-zinc-400">{{ $notification->created_at->diffForHumans() }}</span>
                     </span>
                     @if ($notification->unread())
-                        <span class="mt-2 size-2 shrink-0 rounded-full bg-orange-600" aria-hidden="true"></span>
+                        <span class="mt-2 size-2 shrink-0 rounded-full bg-teal-600" aria-hidden="true"></span>
                     @endif
                 </button>
             @empty

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use App\Actions\Quizzes\CreateQuizFromTemplate;
 use App\Enums\QuizStatus;
@@ -122,7 +122,7 @@ new class extends Component {
 
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         @foreach ($templates as $template)
-                            <div class="flex flex-col rounded-xl border border-zinc-200 p-4 transition hover:border-orange-300 dark:border-zinc-700 dark:hover:border-orange-800" wire:key="template-{{ $template->id }}">
+                            <div class="flex flex-col rounded-xl border border-zinc-200 p-4 transition hover:border-teal-300 dark:border-zinc-700 dark:hover:border-teal-800" wire:key="template-{{ $template->id }}">
                                 <div class="flex items-start justify-between gap-2">
                                     <p class="text-sm font-semibold text-zinc-900 dark:text-white">{{ $template->name }}</p>
                                     @unless ($template->isGlobal())
@@ -177,7 +177,7 @@ new class extends Component {
                                 wire:key="type-{{ $quizType->value }}"
                                 @class([
                                     'flex items-start gap-3 rounded-xl border p-3 text-left transition',
-                                    'border-orange-500 bg-orange-50 ring-1 ring-orange-500 dark:bg-orange-950/40' => $selected === $quizType,
+                                    'border-teal-500 bg-teal-50 ring-1 ring-teal-500 dark:bg-teal-950/40' => $selected === $quizType,
                                     'border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:border-zinc-600 dark:hover:bg-zinc-800/60' => $selected !== $quizType,
                                 ])
                                 aria-pressed="{{ $selected === $quizType ? 'true' : 'false' }}"

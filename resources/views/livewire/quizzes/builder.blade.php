@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use App\Enums\QuestionType;
 use App\Models\LibraryQuestion;
@@ -926,7 +926,7 @@ new class extends Component {
                                     wire:click="selectQuestion({{ $question->id }})"
                                     @class([
                                         'flex min-w-0 flex-1 items-center gap-2 px-2 py-2 text-left text-sm',
-                                        'bg-orange-50 text-orange-900 dark:bg-orange-950/50 dark:text-orange-200' => $selectedQuestionId === $question->id,
+                                        'bg-teal-50 text-teal-900 dark:bg-teal-950/50 dark:text-teal-200' => $selectedQuestionId === $question->id,
                                         'text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800/60' => $selectedQuestionId !== $question->id,
                                     ])
                                 >
@@ -971,7 +971,7 @@ new class extends Component {
 
                         <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
                             @foreach ($libraryQuestions as $libraryQuestion)
-                                <div class="flex items-center gap-1 rounded-lg border border-zinc-200 transition hover:border-orange-300 dark:border-zinc-700 dark:hover:border-orange-800" wire:key="lib-{{ $libraryQuestion->id }}">
+                                <div class="flex items-center gap-1 rounded-lg border border-zinc-200 transition hover:border-teal-300 dark:border-zinc-700 dark:hover:border-teal-800" wire:key="lib-{{ $libraryQuestion->id }}">
                                     <button
                                         type="button"
                                         wire:click="addLibraryQuestion({{ $libraryQuestion->id }})"
@@ -1110,7 +1110,7 @@ new class extends Component {
                                         type="text"
                                         wire:model.blur="optionLabels.{{ $option->id }}"
                                         aria-label="{{ __('Option label') }}"
-                                        class="w-full flex-1 rounded-lg border-zinc-300 bg-white text-sm shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                                        class="w-full flex-1 rounded-lg border-zinc-300 bg-white text-sm shadow-sm focus:border-teal-500 focus:ring-teal-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
                                     />
 
                                     <flux:button variant="subtle" size="xs" icon="chevron-up" wire:click="moveOption({{ $option->id }}, -1)" :disabled="$loop->first" aria-label="{{ __('Move option up') }}" />
@@ -1227,7 +1227,7 @@ new class extends Component {
                                                 wire:model.blur="qLogicConditions.{{ $index }}.value"
                                                 placeholder="{{ __('Value') }}"
                                                 aria-label="{{ __('Comparison value') }}"
-                                                class="min-w-24 flex-1 rounded-lg border-zinc-300 bg-white text-sm shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                                                class="min-w-24 flex-1 rounded-lg border-zinc-300 bg-white text-sm shadow-sm focus:border-teal-500 focus:ring-teal-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
                                             />
                                         @endif
                                     @endif

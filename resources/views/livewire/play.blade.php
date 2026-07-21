@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use App\Enums\QuestionType;
 use App\Enums\QuizStatus;
@@ -310,7 +310,7 @@ new #[Layout('components.layouts.player')] class extends Component {
             aria-valuemax="100"
             aria-label="{{ __('Quiz progress') }}"
         >
-            <div class="h-full bg-gradient-to-r from-orange-500 to-red-600 transition-all duration-300" style="width: {{ $progress }}%"></div>
+            <div class="h-full bg-gradient-to-r from-teal-400 to-teal-500 transition-all duration-300" style="width: {{ $progress }}%"></div>
         </div>
     @endunless
 
@@ -323,7 +323,7 @@ new #[Layout('components.layouts.player')] class extends Component {
             </div>
         @elseif ($completed)
             <div class="m-auto w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-10 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-                <span class="mx-auto flex size-14 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-red-600">
+                <span class="mx-auto flex size-14 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-teal-500">
                     <flux:icon.check class="size-7 text-white" />
                 </span>
 
@@ -357,7 +357,7 @@ new #[Layout('components.layouts.player')] class extends Component {
                             @endif
 
                             @if ($outcome['grade'] ?? null)
-                                <span class="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-800 dark:bg-orange-950/60 dark:text-orange-300">
+                                <span class="rounded-full bg-teal-100 px-3 py-1 text-xs font-semibold text-teal-800 dark:bg-teal-950/60 dark:text-teal-300">
                                     {{ $outcome['grade'] }}
                                 </span>
                             @endif

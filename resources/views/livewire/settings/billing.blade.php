@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use App\Enums\WorkspaceRole;
 use App\Models\Workspace;
@@ -148,7 +148,7 @@ new class extends Component {
                     </div>
                     @if ($limit !== null)
                         <div class="mt-1 h-2.5 w-full rounded-full bg-zinc-100 dark:bg-zinc-800">
-                            <div @class(['h-full rounded-full', 'bg-orange-600' => $pct < 100, 'bg-red-600' => $pct >= 100]) style="width: {{ $pct }}%"></div>
+                            <div @class(['h-full rounded-full', 'bg-teal-600' => $pct < 100, 'bg-red-600' => $pct >= 100]) style="width: {{ $pct }}%"></div>
                         </div>
                     @endif
                 </div>
@@ -166,13 +166,13 @@ new class extends Component {
             @foreach ($plans as $key => $plan)
                 <div @class([
                     'flex flex-col rounded-xl border p-4',
-                    'border-orange-500 ring-1 ring-orange-500' => $key === $planKey,
+                    'border-teal-500 ring-1 ring-teal-500' => $key === $planKey,
                     'border-zinc-200 dark:border-zinc-700' => $key !== $planKey,
                 ]) wire:key="plan-{{ $key }}">
                     <div class="flex items-center justify-between">
                         <p class="text-sm font-semibold text-zinc-900 dark:text-white">{{ $plan['name'] }}</p>
                         @if ($key === $planKey)
-                            <span class="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800 dark:bg-orange-950/60 dark:text-orange-300">
+                            <span class="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-800 dark:bg-teal-950/60 dark:text-teal-300">
                                 {{ __('Current') }}
                             </span>
                         @endif
@@ -192,7 +192,7 @@ new class extends Component {
                     @if ($key !== $planKey && $plan['price'] > 0)
                         <div class="mt-4">
                             @if (isset($checkouts[$key]))
-                                <x-paddle-button :checkout="$checkouts[$key]" class="w-full rounded-lg bg-orange-700 px-4 py-2 text-sm font-medium text-white hover:bg-orange-800">
+                                <x-paddle-button :checkout="$checkouts[$key]" class="w-full rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800">
                                     {{ __('Upgrade to :plan', ['plan' => $plan['name']]) }}
                                 </x-paddle-button>
                             @else
