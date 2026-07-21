@@ -1,3 +1,5 @@
+@props(['heading' => '', 'subheading' => '', 'wide' => false])
+
 <div class="flex items-start max-md:flex-col">
     <div class="mr-10 w-full pb-4 md:w-[220px]">
         <flux:navlist>
@@ -19,7 +21,7 @@
         <flux:heading class="tracking-tight">{{ $heading ?? '' }}</flux:heading>
         <flux:subheading>{{ $subheading ?? '' }}</flux:subheading>
 
-        <div class="mt-5 w-full max-w-2xl">
+        <div @class(['mt-5 w-full', 'max-w-4xl' => $wide, 'max-w-2xl' => ! $wide])>
             {{ $slot }}
         </div>
     </div>

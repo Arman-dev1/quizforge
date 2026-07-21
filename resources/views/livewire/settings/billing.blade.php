@@ -96,7 +96,7 @@ new class extends Component {
 <section class="w-full">
     @include('partials.settings-heading')
 
-    <x-settings.layout heading="{{ __('Billing') }}" subheading="{{ __('Your plan, usage, and subscription') }}">
+    <x-settings.layout heading="{{ __('Billing') }}" subheading="{{ __('Your plan, usage, and subscription') }}" wide>
         @error('billing')
             <flux:text class="mt-4 text-sm text-red-600 dark:text-red-400">{{ $message }}</flux:text>
         @enderror

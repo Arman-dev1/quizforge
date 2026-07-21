@@ -8,9 +8,10 @@ use App\Models\QuizPage;
 use App\Services\Logic\LogicEngine;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
-new class extends Component {
+new #[Layout('components.layouts.builder')] class extends Component {
     public Quiz $quiz;
 
     public ?int $selectedQuestionId = null;
@@ -841,8 +842,8 @@ new class extends Component {
     }
 }; ?>
 
-<section
-    class="flex w-full flex-col gap-6 lg:flex-row"
+<div
+    class="flex min-h-svh w-full flex-col lg:h-svh lg:flex-row"
     x-data
     x-on:keydown.window="
         if (($event.ctrlKey || $event.metaKey) && $event.key.toLowerCase() === 'z' && !['INPUT', 'TEXTAREA', 'SELECT'].includes($event.target.tagName)) {
@@ -851,41 +852,30 @@ new class extends Component {
         }
     "
 >
-    {{-- Structure panel --}}
-    <aside class="w-full shrink-0 lg:w-80">
-        <div class="mb-4 flex items-center justify-between gap-2">
-            <div class="min-w-0">
-                <a href="{{ route('quizzes.show', $quiz) }}" wire:navigate class="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200">
-                    <flux:icon.arrow-left class="size-3.5" />
-                    {{ __('Back to overview') }}
-                </a>
-                <flux:heading class="mt-1 truncate">{{ $quiz->name }}</flux:heading>
-            </div>
-
-            <x-action-message on="builder-saved" class="shrink-0 text-xs">
-                {{ __('Saved') }}
-            </x-action-message>
+    {{-- Structure sidebar --}}
+    <aside class="flex w-full shrink-0 flex-col border-b border-zinc-200 bg-white lg:h-svh lg:w-72 lg:border-r lg:border-b-0 dark:border-zinc-800 dark:bg-zinc-900">
+        <div class="border-b border-zinc-200 p-4 dark:border-zinc-800">
+            <a href="{{ route('dashboard') }}" wire:navigate class="mb-3 flex items-center">
+                <x-app-logo />
+            </a>
+            <a href="{{ route('quizzes.show', $quiz) }}" wire:navigate class="flex w-fit items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200">
+                <flux:icon.arrow-left class="size-3.5" />
+                {{ __('Back to overview') }}
+            </a>
+            <p class="mt-1.5 truncate text-sm font-extrabold tracking-tight text-zinc-900 dark:text-white">{{ $quiz->name }}</p>
         </div>
 
-        <div class="mb-4 flex items-center gap-1">
-            <flux:button variant="subtle" size="sm" icon="arrow-uturn-left" wire:click="undo" :disabled="! $canUndo" aria-label="{{ __('Undo') }}" title="{{ __('Undo (Ctrl+Z)') }}" />
-            <flux:button variant="subtle" size="sm" icon="arrow-uturn-right" wire:click="redo" :disabled="! $canRedo" aria-label="{{ __('Redo') }}" title="{{ __('Redo (Ctrl+Shift+Z)') }}" />
+        <div class="flex-1 overflow-y-auto p-3">
+            <p class="px-1 pb-2 font-mono text-[10px] font-semibold tracking-[0.12em] text-zinc-400 uppercase">{{ __('Structure') }}</p>
 
-            <flux:spacer />
+            @error('builder')
+                <flux:text class="mb-3 px-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</flux:text>
+            @enderror
 
-            <flux:button variant="filled" size="sm" icon="eye" href="{{ route('quizzes.preview', $quiz) }}" target="_blank">
-                {{ __('Preview') }}
-            </flux:button>
-        </div>
-
-        @error('builder')
-            <flux:text class="mb-3 text-sm text-red-600 dark:text-red-400">{{ $message }}</flux:text>
-        @enderror
-
-        <div class="space-y-4" x-sortable data-sort-method="sortPage">
+            <div class="space-y-3" x-sortable data-sort-method="sortPage">
             @foreach ($pages as $page)
-                <div class="rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900" wire:key="page-{{ $page->id }}" data-sort-id="{{ $page->id }}">
-                    <div class="flex items-center gap-1 border-b border-zinc-200 p-2 dark:border-zinc-700">
+                <div class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800" wire:key="page-{{ $page->id }}" data-sort-id="{{ $page->id }}">
+                    <div class="flex items-center gap-1 border-b border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-800 dark:bg-zinc-800/50">
                         <span data-sort-handle class="p-1 text-zinc-400" aria-hidden="true">
                             <flux:icon.bars-2 class="size-4" />
                         </span>
@@ -950,14 +940,29 @@ new class extends Component {
                 </div>
             @endforeach
 
-            <flux:button variant="filled" icon="plus" wire:click="addPage" class="w-full">
-                {{ __('Add page') }}
-            </flux:button>
+                <flux:button variant="filled" icon="plus" wire:click="addPage" class="w-full">
+                    {{ __('Add page') }}
+                </flux:button>
+            </div>
         </div>
     </aside>
 
     {{-- Editor panel --}}
-    <div class="min-w-0 flex-1">
+    <div class="flex min-w-0 flex-1 flex-col lg:h-svh">
+        <header class="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-zinc-200 bg-white/90 px-4 py-2.5 backdrop-blur sm:px-6 dark:border-zinc-800 dark:bg-zinc-900/90">
+            <div class="flex items-center gap-1.5">
+                <flux:button variant="subtle" size="sm" icon="arrow-uturn-left" wire:click="undo" :disabled="! $canUndo" aria-label="{{ __('Undo') }}" title="{{ __('Undo (Ctrl+Z)') }}" />
+                <flux:button variant="subtle" size="sm" icon="arrow-uturn-right" wire:click="redo" :disabled="! $canRedo" aria-label="{{ __('Redo') }}" title="{{ __('Redo (Ctrl+Shift+Z)') }}" />
+                <x-action-message on="builder-saved" class="ml-1.5 font-mono text-xs text-zinc-400">{{ __('All changes saved') }}</x-action-message>
+            </div>
+
+            <flux:button variant="filled" size="sm" icon="eye" href="{{ route('quizzes.preview', $quiz) }}" target="_blank">
+                {{ __('Preview') }}
+            </flux:button>
+        </header>
+
+        <div class="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-9">
+            <div class="mx-auto max-w-3xl">
         @if ($pickingForPageId)
             <div class="flex items-center justify-between">
                 <flux:heading size="lg">{{ __('Choose a question type') }}</flux:heading>
@@ -1252,5 +1257,7 @@ new class extends Component {
                 </flux:subheading>
             </div>
         @endif
+            </div>
+        </div>
     </div>
-</section>
+</div>
