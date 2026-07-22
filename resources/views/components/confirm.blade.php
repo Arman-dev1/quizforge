@@ -11,9 +11,13 @@
 
 @php($__modal = $name ?: 'confirm-'.substr(md5($action.'|'.$title), 0, 12))
 
-<flux:modal.trigger name="{{ $__modal }}">
-    {{ $trigger }}
-</flux:modal.trigger>
+{{-- Trigger is optional: omit it to render a standalone modal that another
+     element opens with x-on:click="$dispatch('modal-show', { name: '…' })". --}}
+@isset($trigger)
+    <flux:modal.trigger name="{{ $__modal }}">
+        {{ $trigger }}
+    </flux:modal.trigger>
+@endisset
 
 <flux:modal name="{{ $__modal }}" class="w-full max-w-md">
     <div class="space-y-5">

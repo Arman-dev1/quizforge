@@ -218,35 +218,38 @@ new class extends Component {
                                         {{ __('Restore to draft') }}
                                     </flux:menu.item>
 
-                                    <x-confirm
-                                        :name="'del-quiz-'.$quiz->id"
-                                        action="deleteQuiz({{ $quiz->id }})"
-                                        :title="__('Delete this quiz?')"
-                                        :description="__('This permanently deletes the quiz and all of its responses. This cannot be undone.')"
-                                        :confirm="__('Delete quiz')"
-                                        icon="trash"
-                                    >
-                                        <x-slot:trigger>
-                                            <flux:menu.item icon="trash" variant="danger">{{ __('Delete') }}</flux:menu.item>
-                                        </x-slot:trigger>
-                                    </x-confirm>
+                                    <flux:menu.item icon="trash" variant="danger" x-on:click="$dispatch('modal-show', { name: 'del-quiz-{{ $quiz->id }}' })">
+                                        {{ __('Delete') }}
+                                    </flux:menu.item>
                                 @else
-                                    <x-confirm
-                                        :name="'archive-quiz-'.$quiz->id"
-                                        action="archive({{ $quiz->id }})"
-                                        :title="__('Archive this quiz?')"
-                                        :description="__('It will stop accepting responses and move to your archive. You can restore it later.')"
-                                        :confirm="__('Archive')"
-                                        tone="primary"
-                                        icon="archive-box"
-                                    >
-                                        <x-slot:trigger>
-                                            <flux:menu.item icon="archive-box">{{ __('Archive') }}</flux:menu.item>
-                                        </x-slot:trigger>
-                                    </x-confirm>
+                                    <flux:menu.item icon="archive-box" x-on:click="$dispatch('modal-show', { name: 'archive-quiz-{{ $quiz->id }}' })">
+                                        {{ __('Archive') }}
+                                    </flux:menu.item>
                                 @endif
                             </flux:menu>
                         </flux:dropdown>
+
+                        {{-- Confirmation modals live outside the dropdown so the menu can't swallow the click. --}}
+                        @if ($quiz->isArchived())
+                            <x-confirm
+                                :name="'del-quiz-'.$quiz->id"
+                                action="deleteQuiz({{ $quiz->id }})"
+                                :title="__('Delete this quiz?')"
+                                :description="__('This permanently deletes the quiz and all of its responses. This cannot be undone.')"
+                                :confirm="__('Delete quiz')"
+                                icon="trash"
+                            />
+                        @else
+                            <x-confirm
+                                :name="'archive-quiz-'.$quiz->id"
+                                action="archive({{ $quiz->id }})"
+                                :title="__('Archive this quiz?')"
+                                :description="__('It will stop accepting responses and move to your archive. You can restore it later.')"
+                                :confirm="__('Archive')"
+                                tone="primary"
+                                icon="archive-box"
+                            />
+                        @endif
                     @endif
                 </li>
             @endforeach
