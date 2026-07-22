@@ -6,6 +6,7 @@ use App\Enums\QuestionType;
 use App\Models\Quiz;
 use App\Models\QuizAnswer;
 use App\Models\QuizResponse;
+use Illuminate\Support\Carbon;
 
 /**
  * Aggregates analytics for a quiz from stored responses and answers.
@@ -17,17 +18,19 @@ class QuizAnalytics
     /**
      * @return array{views: int, starts: int, completions: int, completion_rate: ?int, avg_seconds: ?int}
      */
-    public function summary(Quiz $quiz): array
+    public function summary(Quiz $quiz, ?Carbon $since = null): array
     {
-        $starts = $quiz->responses()->count();
-        $completions = $quiz->responses()->where('status', QuizResponse::STATUS_COMPLETED)->count();
+        $starts = $this->responsesInRange($quiz, $since)->count();
+        $completions = $this->responsesInRange($quiz, $since)->where('status', QuizResponse::STATUS_COMPLETED)->count();
 
-        $durations = $quiz->responses()
+        $durations = $this->responsesInRange($quiz, $since)
             ->whereNotNull('completed_at')
             ->get(['started_at', 'completed_at']);
 
         return [
-            'views' => (int) $quiz->views()->sum('views'),
+            'views' => (int) $quiz->views()
+                ->when($since, fn ($query) => $query->where('view_date', '>=', $since->toDateString()))
+                ->sum('views'),
             'starts' => $starts,
             'completions' => $completions,
             'completion_rate' => $starts > 0 ? (int) round($completions / $starts * 100) : null,
@@ -42,7 +45,7 @@ class QuizAnalytics
      *
      * @return array<int, array{title: string, reached: int, rate: int}>
      */
-    public function pageFunnel(Quiz $quiz): array
+    public function pageFunnel(Quiz $quiz, ?Carbon $since = null): array
     {
         $version = $quiz->latestVersion();
 
@@ -50,7 +53,7 @@ class QuizAnalytics
             return [];
         }
 
-        $byPage = $quiz->responses()
+        $byPage = $this->responsesInRange($quiz, $since)
             ->selectRaw('current_page, count(*) as total')
             ->groupBy('current_page')
             ->pluck('total', 'current_page');
@@ -79,7 +82,7 @@ class QuizAnalytics
      *
      * @return array<int, array<string, mixed>>
      */
-    public function questionStats(Quiz $quiz): array
+    public function questionStats(Quiz $quiz, ?Carbon $since = null): array
     {
         $version = $quiz->latestVersion();
 
@@ -101,7 +104,8 @@ class QuizAnalytics
         }
 
         QuizAnswer::query()
-            ->whereHas('response', fn ($query) => $query->where('quiz_id', $quiz->id))
+            ->whereHas('response', fn ($query) => $query->where('quiz_id', $quiz->id)
+                ->when($since, fn ($responses) => $responses->where('created_at', '>=', $since)))
             ->chunkById(500, function ($answers) use (&$stats, $questions) {
                 foreach ($answers as $answer) {
                     $questionId = (int) $answer->question_id;
@@ -170,5 +174,15 @@ class QuizAnalytics
         }
 
         return $rows;
+    }
+
+    /**
+     * Base response query, optionally limited to responses created on or
+     * after $since. A null $since means all-time.
+     */
+    protected function responsesInRange(Quiz $quiz, ?Carbon $since)
+    {
+        return $quiz->responses()
+            ->when($since, fn ($query) => $query->where('created_at', '>=', $since));
     }
 }

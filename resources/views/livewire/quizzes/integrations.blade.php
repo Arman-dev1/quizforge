@@ -188,7 +188,7 @@ new class extends Component {
 
 @php($logo = fn (array $p) => '<span class="flex size-11 shrink-0 items-center justify-center rounded-xl text-lg font-extrabold" style="background:'.$p['color'].';color:'.$p['ink'].'">'.$p['initial'].'</span>')
 
-<section class="mx-auto w-full max-w-4xl">
+<section class="w-full">
     <div class="min-w-0">
         <a href="{{ route('quizzes.show', $quiz) }}" wire:navigate class="flex w-fit items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200">
             <flux:icon.arrow-left class="size-3.5" />
@@ -332,7 +332,7 @@ new class extends Component {
             </div>
         @endif
 
-        <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             @foreach ($providers as $p)
                 <div class="flex flex-col rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900" wire:key="prov-{{ $p['key'] }}">
                     <div class="flex items-center gap-3">
@@ -373,6 +373,15 @@ new class extends Component {
                     </div>
                 </div>
             @endforeach
+
+            {{-- Request another tool --}}
+            <div class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-300 bg-zinc-50/60 p-5 text-center dark:border-zinc-700 dark:bg-zinc-900/40">
+                <flux:icon.link class="size-6 text-zinc-400 dark:text-zinc-500" />
+                <p class="mt-2 text-sm font-semibold text-zinc-700 dark:text-zinc-200">{{ __('Need another tool?') }}</p>
+                <a href="mailto:hello@quizforge.app?subject={{ rawurlencode(__('Integration request')) }}" class="mt-0.5 text-sm font-semibold text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300">
+                    {{ __('Request an integration') }}
+                </a>
+            </div>
         </div>
     @endif
 

@@ -185,7 +185,7 @@ new class extends Component {
     }
 }; ?>
 
-<section class="mx-auto w-full max-w-3xl">
+<section class="w-full">
     <a href="{{ route('quizzes.index') }}" wire:navigate class="mb-4 flex w-fit items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200">
         <flux:icon.arrow-left class="size-3.5" />
         {{ __('Back to quizzes') }}
@@ -270,27 +270,29 @@ new class extends Component {
 
     @if ($canEdit)
         <div class="mt-8 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-            <form wire:submit="updateDetails" class="max-w-lg space-y-6">
-                <flux:input
-                    wire:model="name"
-                    label="{{ __('Name') }}"
-                    type="text"
-                    required
-                />
+            <form wire:submit="updateDetails" class="space-y-6">
+                <div class="grid gap-6 lg:grid-cols-2 lg:items-start">
+                    <flux:input
+                        wire:model="name"
+                        label="{{ __('Name') }}"
+                        type="text"
+                        required
+                    />
+
+                    <flux:input
+                        value="{{ $quiz->slug }}"
+                        label="{{ __('Public link') }}"
+                        type="text"
+                        disabled
+                        description="{{ __('Your quiz will be available at /q/:slug once published.', ['slug' => $quiz->slug]) }}"
+                    />
+                </div>
 
                 <flux:textarea
                     wire:model="description"
                     label="{{ __('Description') }}"
                     rows="3"
                     placeholder="{{ __('Internal notes about this quiz (optional)') }}"
-                />
-
-                <flux:input
-                    value="{{ $quiz->slug }}"
-                    label="{{ __('Public link') }}"
-                    type="text"
-                    disabled
-                    description="{{ __('Your quiz will be available at /q/:slug once published.', ['slug' => $quiz->slug]) }}"
                 />
 
                 <div class="flex items-center gap-4">
@@ -366,7 +368,7 @@ new class extends Component {
             <flux:heading>{{ __('Scoring & results') }}</flux:heading>
             <flux:subheading>{{ __('Grade responses and control what respondents see when they finish.') }}</flux:subheading>
 
-            <form wire:submit="saveResults" class="mt-5 max-w-lg space-y-5">
+            <form wire:submit="saveResults" class="mt-5 space-y-5">
                 <div class="flex items-center gap-6">
                     <flux:checkbox wire:model.live="resultScored" label="{{ __('Score this quiz') }}" />
                     @if ($resultScored)
@@ -394,20 +396,22 @@ new class extends Component {
                     </div>
                 @endif
 
-                <flux:textarea
-                    wire:model="resultMessage"
-                    label="{{ __('Thank-you message') }}"
-                    rows="2"
-                    placeholder="{{ __('Shown after submitting (optional)') }}"
-                />
+                <div class="grid gap-4 lg:grid-cols-2 lg:items-start">
+                    <flux:textarea
+                        wire:model="resultMessage"
+                        label="{{ __('Thank-you message') }}"
+                        rows="2"
+                        placeholder="{{ __('Shown after submitting (optional)') }}"
+                    />
 
-                <flux:input
-                    wire:model="resultRedirect"
-                    label="{{ __('Redirect URL') }}"
-                    type="url"
-                    placeholder="https://example.com/thanks"
-                    description="{{ __('Respondents get a button to continue to this link (optional).') }}"
-                />
+                    <flux:input
+                        wire:model="resultRedirect"
+                        label="{{ __('Redirect URL') }}"
+                        type="url"
+                        placeholder="https://example.com/thanks"
+                        description="{{ __('Respondents get a button to continue to this link (optional).') }}"
+                    />
+                </div>
 
                 <div class="flex items-center gap-4">
                     <flux:button variant="primary" type="submit">{{ __('Save results') }}</flux:button>

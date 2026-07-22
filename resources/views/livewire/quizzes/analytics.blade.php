@@ -2,10 +2,14 @@
 
 use App\Models\Quiz;
 use App\Services\Analytics\QuizAnalytics;
+use Illuminate\Support\Carbon;
 use Livewire\Volt\Component;
 
 new class extends Component {
     public Quiz $quiz;
+
+    /** Time window: 7 / 30 / 90 days, or 'all'. */
+    public string $range = '30';
 
     public function mount(Quiz $quiz): void
     {
@@ -14,26 +18,54 @@ new class extends Component {
         $this->quiz = $quiz;
     }
 
+    /** The catalog of selectable ranges: value => label. */
+    public function rangeOptions(): array
+    {
+        return [
+            '7' => __('Last 7 days'),
+            '30' => __('Last 30 days'),
+            '90' => __('Last 90 days'),
+            'all' => __('All time'),
+        ];
+    }
+
+    protected function since(): ?Carbon
+    {
+        return $this->range === 'all' ? null : now()->subDays((int) $this->range);
+    }
+
     public function with(QuizAnalytics $analytics): array
     {
         $hasVersion = $this->quiz->latestVersion() !== null;
+        $since = $this->since();
 
         return [
             'hasVersion' => $hasVersion,
-            'summary' => $hasVersion ? $analytics->summary($this->quiz) : null,
-            'funnel' => $hasVersion ? $analytics->pageFunnel($this->quiz) : [],
-            'questionStats' => $hasVersion ? $analytics->questionStats($this->quiz) : [],
+            'rangeOptions' => $this->rangeOptions(),
+            'summary' => $hasVersion ? $analytics->summary($this->quiz, $since) : null,
+            'funnel' => $hasVersion ? $analytics->pageFunnel($this->quiz, $since) : [],
+            'questionStats' => $hasVersion ? $analytics->questionStats($this->quiz, $since) : [],
         ];
     }
 }; ?>
 
 <section class="w-full">
-    <div class="min-w-0">
-        <a href="{{ route('quizzes.show', $quiz) }}" wire:navigate class="flex items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200">
-            <flux:icon.arrow-left class="size-3.5" />
-            {{ $quiz->name }}
-        </a>
-        <flux:heading size="xl" class="mt-1 tracking-tight">{{ __('Analytics') }}</flux:heading>
+    <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0">
+            <a href="{{ route('quizzes.show', $quiz) }}" wire:navigate class="flex items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200">
+                <flux:icon.arrow-left class="size-3.5" />
+                {{ $quiz->name }}
+            </a>
+            <flux:heading size="xl" class="mt-1 tracking-tight">{{ __('Analytics') }}</flux:heading>
+        </div>
+
+        @if ($hasVersion)
+            <flux:select wire:model.live="range" size="sm" class="w-auto min-w-40">
+                @foreach ($rangeOptions as $value => $label)
+                    <option value="{{ $value }}">{{ $label }}</option>
+                @endforeach
+            </flux:select>
+        @endif
     </div>
 
     @unless ($hasVersion)

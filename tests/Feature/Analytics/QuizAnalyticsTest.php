@@ -109,6 +109,26 @@ class QuizAnalyticsTest extends TestCase
         $this->assertSame(120, $summary['avg_seconds']);
     }
 
+    public function test_summary_respects_the_time_range(): void
+    {
+        [$user, $quiz] = $this->publishedQuizWithData();
+
+        // An older response that falls outside a 30-day window.
+        QuizResponse::factory()->create([
+            'quiz_id' => $quiz->id,
+            'workspace_id' => $quiz->workspace_id,
+            'quiz_version_id' => $quiz->latestVersion()->id,
+            'current_page' => 0,
+            'created_at' => now()->subDays(60),
+            'started_at' => now()->subDays(60),
+        ]);
+
+        $analytics = app(QuizAnalytics::class);
+
+        $this->assertSame(4, $analytics->summary($quiz)['starts']);
+        $this->assertSame(3, $analytics->summary($quiz, now()->subDays(30))['starts']);
+    }
+
     public function test_funnel_counts_how_many_reached_each_page(): void
     {
         [$user, $quiz] = $this->publishedQuizWithData();
