@@ -889,14 +889,18 @@ new #[Layout('components.layouts.builder')] class extends Component {
 
                         <flux:button variant="subtle" size="xs" icon="chevron-up" wire:click="movePage({{ $page->id }}, -1)" :disabled="$loop->first" aria-label="{{ __('Move page up') }}" />
                         <flux:button variant="subtle" size="xs" icon="chevron-down" wire:click="movePage({{ $page->id }}, 1)" :disabled="$loop->last" aria-label="{{ __('Move page down') }}" />
-                        <flux:button
-                            variant="subtle"
-                            size="xs"
+                        <x-confirm
+                            :name="'del-page-'.$page->id"
+                            action="deletePage({{ $page->id }})"
+                            :title="__('Delete this page?')"
+                            :description="__('This deletes the page and every question on it. This cannot be undone.')"
+                            :confirm="__('Delete page')"
                             icon="trash"
-                            wire:click="deletePage({{ $page->id }})"
-                            wire:confirm="{{ __('Delete this page and all of its questions?') }}"
-                            aria-label="{{ __('Delete page') }}"
-                        />
+                        >
+                            <x-slot:trigger>
+                                <flux:button variant="subtle" size="xs" icon="trash" aria-label="{{ __('Delete page') }}" />
+                            </x-slot:trigger>
+                        </x-confirm>
                     </div>
 
                     <ul
@@ -985,15 +989,18 @@ new #[Layout('components.layouts.builder')] class extends Component {
                                         <flux:icon :icon="\App\Enums\QuestionType::from($libraryQuestion->question['type'])->icon()" class="size-5 shrink-0 text-zinc-500 dark:text-zinc-400" />
                                         <span class="min-w-0 flex-1 truncate text-sm font-medium text-zinc-800 dark:text-white">{{ $libraryQuestion->name }}</span>
                                     </button>
-                                    <flux:button
-                                        variant="subtle"
-                                        size="xs"
+                                    <x-confirm
+                                        :name="'del-lib-'.$libraryQuestion->id"
+                                        action="deleteLibraryQuestion({{ $libraryQuestion->id }})"
+                                        :title="__('Remove from library?')"
+                                        :description="__('This removes the saved question from your workspace library.')"
+                                        :confirm="__('Remove')"
                                         icon="x-mark"
-                                        class="mr-1"
-                                        wire:click="deleteLibraryQuestion({{ $libraryQuestion->id }})"
-                                        wire:confirm="{{ __('Remove this question from the library?') }}"
-                                        aria-label="{{ __('Remove from library') }}"
-                                    />
+                                    >
+                                        <x-slot:trigger>
+                                            <flux:button variant="subtle" size="xs" icon="x-mark" class="mr-1" aria-label="{{ __('Remove from library') }}" />
+                                        </x-slot:trigger>
+                                    </x-confirm>
                                 </div>
                             @endforeach
                         </div>
@@ -1034,14 +1041,18 @@ new #[Layout('components.layouts.builder')] class extends Component {
                     <flux:button variant="subtle" size="sm" icon="chevron-down" wire:click="moveQuestion({{ $selected->id }}, 1)" aria-label="{{ __('Move question down') }}" />
                     <flux:button variant="subtle" size="sm" icon="document-duplicate" wire:click="duplicateQuestion({{ $selected->id }})" aria-label="{{ __('Duplicate question') }}" />
                     <flux:button variant="subtle" size="sm" icon="bookmark" wire:click="saveToLibrary" title="{{ __('Save to question library') }}" aria-label="{{ __('Save to question library') }}" />
-                    <flux:button
-                        variant="subtle"
-                        size="sm"
+                    <x-confirm
+                        :name="'del-question-'.$selected->id"
+                        action="deleteQuestion({{ $selected->id }})"
+                        :title="__('Delete this question?')"
+                        :description="__('This removes the question and its options. This cannot be undone.')"
+                        :confirm="__('Delete question')"
                         icon="trash"
-                        wire:click="deleteQuestion({{ $selected->id }})"
-                        wire:confirm="{{ __('Delete this question?') }}"
-                        aria-label="{{ __('Delete question') }}"
-                    />
+                    >
+                        <x-slot:trigger>
+                            <flux:button variant="subtle" size="sm" icon="trash" aria-label="{{ __('Delete question') }}" />
+                        </x-slot:trigger>
+                    </x-confirm>
                 </div>
             </div>
 

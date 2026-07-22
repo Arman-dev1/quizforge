@@ -197,14 +197,17 @@ new class extends Component {
                                         @if ($response->trashed())
                                             <flux:button variant="subtle" size="sm" icon="arrow-uturn-left" wire:click="restoreResponse({{ $response->id }})" aria-label="{{ __('Restore response') }}" />
                                         @else
-                                            <flux:button
-                                                variant="subtle"
-                                                size="sm"
+                                            <x-confirm
+                                                action="deleteResponse({{ $response->id }})"
+                                                :title="__('Move to trash?')"
+                                                :description="__('This response moves to the trash. You can restore it from the Trashed filter.')"
+                                                :confirm="__('Move to trash')"
                                                 icon="trash"
-                                                wire:click="deleteResponse({{ $response->id }})"
-                                                wire:confirm="{{ __('Move this response to trash?') }}"
-                                                aria-label="{{ __('Delete response') }}"
-                                            />
+                                            >
+                                                <x-slot:trigger>
+                                                    <flux:button variant="subtle" size="sm" icon="trash" aria-label="{{ __('Delete response') }}" />
+                                                </x-slot:trigger>
+                                            </x-confirm>
                                         @endif
                                     @endif
                                 </td>

@@ -131,14 +131,17 @@ new class extends Component {
                 <flux:text class="mt-2 text-red-600 dark:text-red-400">{{ $message }}</flux:text>
             @enderror
 
-            <flux:button
-                class="mt-4"
-                variant="filled"
-                wire:click="leave"
-                wire:confirm="{{ __('Are you sure you want to leave this workspace?') }}"
+            <x-confirm
+                action="leave"
+                :title="__('Leave this workspace?')"
+                :description="__('You will lose access to everything in this workspace. An owner would need to re-invite you.')"
+                :confirm="__('Leave workspace')"
+                icon="arrow-right-start-on-rectangle"
             >
-                {{ __('Leave workspace') }}
-            </flux:button>
+                <x-slot:trigger>
+                    <flux:button class="mt-4" variant="filled">{{ __('Leave workspace') }}</flux:button>
+                </x-slot:trigger>
+            </x-confirm>
         </div>
 
         @if ($canDelete)

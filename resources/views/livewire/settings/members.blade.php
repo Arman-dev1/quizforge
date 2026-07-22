@@ -247,14 +247,18 @@ new class extends Component {
                                 @endforeach
                             </flux:select>
 
-                            <flux:button
-                                variant="subtle"
-                                size="sm"
-                                icon="trash"
-                                wire:click="removeMember({{ $member->id }})"
-                                wire:confirm="{{ __('Remove :name from this workspace?', ['name' => $member->name]) }}"
-                                aria-label="{{ __('Remove :name', ['name' => $member->name]) }}"
-                            />
+                            <x-confirm
+                                :name="'remove-member-'.$member->id"
+                                action="removeMember({{ $member->id }})"
+                                :title="__('Remove :name?', ['name' => $member->name])"
+                                :description="__('They will lose access to this workspace immediately. You can re-invite them later.')"
+                                :confirm="__('Remove member')"
+                                icon="user-minus"
+                            >
+                                <x-slot:trigger>
+                                    <flux:button variant="subtle" size="sm" icon="trash" aria-label="{{ __('Remove :name', ['name' => $member->name]) }}" />
+                                </x-slot:trigger>
+                            </x-confirm>
                         @else
                             <span class="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">
                                 {{ $memberRole->label() }}
@@ -289,14 +293,18 @@ new class extends Component {
                                 {{ __('Resend') }}
                             </flux:button>
 
-                            <flux:button
-                                variant="subtle"
-                                size="sm"
-                                icon="trash"
-                                wire:click="revokeInvitation({{ $invitation->id }})"
-                                wire:confirm="{{ __('Revoke this invitation?') }}"
-                                aria-label="{{ __('Revoke invitation for :email', ['email' => $invitation->email]) }}"
-                            />
+                            <x-confirm
+                                :name="'revoke-inv-'.$invitation->id"
+                                action="revokeInvitation({{ $invitation->id }})"
+                                :title="__('Revoke this invitation?')"
+                                :description="__('The invite link for :email will stop working.', ['email' => $invitation->email])"
+                                :confirm="__('Revoke')"
+                                icon="x-mark"
+                            >
+                                <x-slot:trigger>
+                                    <flux:button variant="subtle" size="sm" icon="trash" aria-label="{{ __('Revoke invitation for :email', ['email' => $invitation->email]) }}" />
+                                </x-slot:trigger>
+                            </x-confirm>
                         </li>
                     @endforeach
                 </ul>

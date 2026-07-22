@@ -224,23 +224,31 @@ new class extends Component {
 
                 @if ($quiz->isArchived())
                     <flux:button wire:click="unarchive" variant="filled" icon="arrow-uturn-left">{{ __('Restore to draft') }}</flux:button>
-                    <flux:button
-                        wire:click="deleteQuiz"
-                        wire:confirm="{{ __('Permanently delete this quiz? This cannot be undone.') }}"
-                        variant="danger"
+
+                    <x-confirm
+                        action="deleteQuiz"
+                        :title="__('Delete this quiz?')"
+                        :description="__('This permanently deletes the quiz and all of its responses. This cannot be undone.')"
+                        :confirm="__('Delete quiz')"
                         icon="trash"
                     >
-                        {{ __('Delete') }}
-                    </flux:button>
+                        <x-slot:trigger>
+                            <flux:button variant="danger" icon="trash">{{ __('Delete') }}</flux:button>
+                        </x-slot:trigger>
+                    </x-confirm>
                 @else
-                    <flux:button
-                        wire:click="archive"
-                        wire:confirm="{{ __('Archive this quiz? It will stop accepting responses.') }}"
-                        variant="filled"
+                    <x-confirm
+                        action="archive"
+                        :title="__('Archive this quiz?')"
+                        :description="__('It will stop accepting responses and move to your archive. You can restore it later.')"
+                        :confirm="__('Archive')"
+                        tone="primary"
                         icon="archive-box"
                     >
-                        {{ __('Archive') }}
-                    </flux:button>
+                        <x-slot:trigger>
+                            <flux:button variant="filled" icon="archive-box">{{ __('Archive') }}</flux:button>
+                        </x-slot:trigger>
+                    </x-confirm>
                 @endif
             @endif
         </div>
@@ -305,7 +313,18 @@ new class extends Component {
                 <div class="flex flex-wrap items-center gap-2">
                     @if ($quiz->status === QuizStatus::Published)
                         <flux:button wire:click="publish" variant="filled" icon="arrow-path">{{ __('Republish changes') }}</flux:button>
-                        <flux:button wire:click="closeQuiz" wire:confirm="{{ __('Stop accepting responses?') }}" variant="filled" icon="lock-closed">{{ __('Close') }}</flux:button>
+                        <x-confirm
+                            action="closeQuiz"
+                            :title="__('Close this quiz?')"
+                            :description="__('Respondents will see a notice that it is no longer accepting responses. You can reopen it anytime.')"
+                            :confirm="__('Close quiz')"
+                            tone="primary"
+                            icon="lock-closed"
+                        >
+                            <x-slot:trigger>
+                                <flux:button variant="filled" icon="lock-closed">{{ __('Close') }}</flux:button>
+                            </x-slot:trigger>
+                        </x-confirm>
                     @elseif ($quiz->status === QuizStatus::Closed)
                         <flux:button wire:click="reopen" variant="primary" icon="lock-open">{{ __('Reopen') }}</flux:button>
                         <flux:button wire:click="publish" variant="filled" icon="arrow-path">{{ __('Republish changes') }}</flux:button>

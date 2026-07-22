@@ -122,9 +122,19 @@ new class extends Component {
             @if ($subscription?->onGracePeriod())
                 <flux:button wire:click="resume" variant="primary" size="sm">{{ __('Keep subscription') }}</flux:button>
             @elseif ($subscription?->valid())
-                <button wire:click="cancel" wire:confirm="{{ __('Cancel your subscription? You keep access until the period ends.') }}" class="rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20">
-                    {{ __('Cancel subscription') }}
-                </button>
+                <x-confirm
+                    action="cancel"
+                    :title="__('Cancel your subscription?')"
+                    :description="__('You keep full access until the end of the current billing period, then move to the Free plan.')"
+                    :confirm="__('Cancel subscription')"
+                    icon="x-circle"
+                >
+                    <x-slot:trigger>
+                        <button type="button" class="rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20">
+                            {{ __('Cancel subscription') }}
+                        </button>
+                    </x-slot:trigger>
+                </x-confirm>
             @else
                 <a href="#plans" class="rounded-lg bg-teal-500 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-teal-600">
                     {{ __('Upgrade to Pro') }}

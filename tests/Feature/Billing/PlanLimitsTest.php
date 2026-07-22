@@ -4,6 +4,7 @@ namespace Tests\Feature\Billing;
 
 use App\Actions\Quizzes\PublishQuiz;
 use App\Enums\QuestionType;
+use App\Enums\QuizType;
 use App\Enums\WorkspaceRole;
 use App\Models\Quiz;
 use App\Models\QuizPage;
@@ -69,7 +70,19 @@ class PlanLimitsTest extends TestCase
 
         $this->assertFalse($user->can('create', Quiz::class));
 
-        $this->get(route('quizzes.create'))->assertForbidden();
+        // The create screen renders a friendly limit state, not a raw 403.
+        $this->get(route('quizzes.create'))
+            ->assertOk()
+            ->assertSee(__('You have reached your plan limit'));
+
+        // ...but the create action itself stays blocked.
+        Volt::test('quizzes.create')
+            ->set('name', 'Blocked quiz')
+            ->set('type', QuizType::cases()[0]->value)
+            ->call('create')
+            ->assertForbidden();
+
+        $this->assertSame(1, Quiz::withoutGlobalScope('workspace')->where('workspace_id', $workspace->id)->count());
     }
 
     public function test_duplication_also_counts_against_the_quiz_limit(): void

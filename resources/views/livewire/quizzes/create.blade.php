@@ -3,8 +3,10 @@
 use App\Actions\Quizzes\CreateQuizFromTemplate;
 use App\Enums\QuizStatus;
 use App\Enums\QuizType;
+use App\Enums\WorkspaceRole;
 use App\Models\Quiz;
 use App\Models\QuizTemplate;
+use App\Services\Billing\UsageLimits;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Livewire\Volt\Component;
@@ -16,9 +18,16 @@ new class extends Component {
 
     public function mount(): void
     {
-        $this->authorize('create', Quiz::class);
+        // Only content editors may reach the create screen at all; the plan
+        // quota is handled gracefully in the view rather than as a raw 403.
+        $workspace = Auth::user()->currentWorkspace;
 
-        if (! QuizTemplate::availableTo(Auth::user()->currentWorkspace)->exists()) {
+        abort_unless(
+            $workspace && (Auth::user()->roleIn($workspace)?->canEditContent() ?? false),
+            403,
+        );
+
+        if (! QuizTemplate::availableTo($workspace)->exists()) {
             $this->tab = 'scratch';
         }
     }
@@ -73,9 +82,11 @@ new class extends Component {
         $this->redirectRoute('quizzes.show', $quiz, navigate: true);
     }
 
-    public function with(): array
+    public function with(UsageLimits $limits): array
     {
-        $templates = QuizTemplate::availableTo(Auth::user()->currentWorkspace)
+        $workspace = Auth::user()->currentWorkspace;
+
+        $templates = QuizTemplate::availableTo($workspace)
             ->orderBy('name')
             ->get();
 
@@ -84,6 +95,10 @@ new class extends Component {
             'selected' => QuizType::tryFrom($this->type),
             'templateGroups' => $templates->groupBy('category')->sortKeys(),
             'hasTemplates' => $templates->isNotEmpty(),
+            'atLimit' => ! $limits->canCreateQuiz($workspace),
+            'quizUsed' => $limits->quizCount($workspace),
+            'quizLimit' => $limits->limit($workspace, 'quizzes'),
+            'canUpgrade' => Auth::user()->roleIn($workspace) === WorkspaceRole::Owner,
         ];
     }
 }; ?>
@@ -93,6 +108,43 @@ new class extends Component {
         <flux:heading size="xl" class="tracking-tight">{{ __('Create a new quiz') }}</flux:heading>
         <flux:subheading>{{ __('Start from a ready-made template or build from scratch.') }}</flux:subheading>
     </div>
+
+    @if ($atLimit)
+        <div class="mt-8 rounded-2xl border border-zinc-200 bg-white p-10 text-center dark:border-zinc-800 dark:bg-zinc-900">
+            <span class="mx-auto flex size-14 items-center justify-center rounded-2xl bg-teal-50 text-teal-600 dark:bg-teal-950/60 dark:text-teal-400">
+                <flux:icon.lock-closed class="size-7" />
+            </span>
+
+            <flux:heading size="lg" class="mt-5">{{ __('You have reached your plan limit') }}</flux:heading>
+            <flux:subheading class="mx-auto mt-1 max-w-md">
+                @if ($quizLimit !== null)
+                    {{ __('Your plan includes :limit quizzes and you are using :used. Upgrade for more, or archive a quiz to free up a slot.', ['limit' => $quizLimit, 'used' => $quizUsed]) }}
+                @else
+                    {{ __('Quiz creation is not available on your current plan.') }}
+                @endif
+            </flux:subheading>
+
+            @if ($quizLimit !== null)
+                <div class="mx-auto mt-5 flex max-w-xs items-center gap-3">
+                    <div class="h-2 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+                        <div class="h-full rounded-full bg-red-500" style="width: {{ min(100, (int) round($quizUsed / max($quizLimit, 1) * 100)) }}%"></div>
+                    </div>
+                    <span class="font-mono text-xs font-semibold text-zinc-500 dark:text-zinc-400">{{ $quizUsed }} / {{ $quizLimit }}</span>
+                </div>
+            @endif
+
+            <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
+                @if ($canUpgrade)
+                    <flux:button :href="route('settings.billing')" wire:navigate variant="primary" icon="sparkles">{{ __('Upgrade plan') }}</flux:button>
+                @endif
+                <flux:button :href="route('quizzes.index')" wire:navigate variant="filled">{{ __('Manage quizzes') }}</flux:button>
+            </div>
+
+            @unless ($canUpgrade)
+                <p class="mt-4 text-xs text-zinc-500 dark:text-zinc-400">{{ __('Ask a workspace owner to upgrade the plan.') }}</p>
+            @endunless
+        </div>
+    @else
 
     @if ($hasTemplates)
         <div class="mt-6 flex items-center gap-1 rounded-xl border border-zinc-200 p-1 dark:border-zinc-700" role="tablist">
@@ -126,14 +178,18 @@ new class extends Component {
                                 <div class="flex items-start justify-between gap-2">
                                     <p class="text-sm font-semibold text-zinc-900 dark:text-white">{{ $template->name }}</p>
                                     @unless ($template->isGlobal())
-                                        <flux:button
-                                            variant="subtle"
-                                            size="xs"
+                                        <x-confirm
+                                            :name="'del-template-'.$template->id"
+                                            action="deleteTemplate({{ $template->id }})"
+                                            :title="__('Delete this template?')"
+                                            :description="__('This removes the saved template. Quizzes already created from it are not affected.')"
+                                            :confirm="__('Delete template')"
                                             icon="trash"
-                                            wire:click="deleteTemplate({{ $template->id }})"
-                                            wire:confirm="{{ __('Delete this template?') }}"
-                                            aria-label="{{ __('Delete template') }}"
-                                        />
+                                        >
+                                            <x-slot:trigger>
+                                                <flux:button variant="subtle" size="xs" icon="trash" aria-label="{{ __('Delete template') }}" />
+                                            </x-slot:trigger>
+                                        </x-confirm>
                                     @endunless
                                 </div>
 
@@ -214,4 +270,5 @@ new class extends Component {
             <flux:button variant="primary" type="submit">{{ __('Create quiz') }}</flux:button>
         </div>
     </form>
+    @endif
 </section>

@@ -218,22 +218,32 @@ new class extends Component {
                                         {{ __('Restore to draft') }}
                                     </flux:menu.item>
 
-                                    <flux:menu.item
-                                        wire:click="deleteQuiz({{ $quiz->id }})"
-                                        wire:confirm="{{ __('Permanently delete this quiz? This cannot be undone.') }}"
+                                    <x-confirm
+                                        :name="'del-quiz-'.$quiz->id"
+                                        action="deleteQuiz({{ $quiz->id }})"
+                                        :title="__('Delete this quiz?')"
+                                        :description="__('This permanently deletes the quiz and all of its responses. This cannot be undone.')"
+                                        :confirm="__('Delete quiz')"
                                         icon="trash"
-                                        variant="danger"
                                     >
-                                        {{ __('Delete') }}
-                                    </flux:menu.item>
+                                        <x-slot:trigger>
+                                            <flux:menu.item icon="trash" variant="danger">{{ __('Delete') }}</flux:menu.item>
+                                        </x-slot:trigger>
+                                    </x-confirm>
                                 @else
-                                    <flux:menu.item
-                                        wire:click="archive({{ $quiz->id }})"
-                                        wire:confirm="{{ __('Archive this quiz? It will stop accepting responses.') }}"
+                                    <x-confirm
+                                        :name="'archive-quiz-'.$quiz->id"
+                                        action="archive({{ $quiz->id }})"
+                                        :title="__('Archive this quiz?')"
+                                        :description="__('It will stop accepting responses and move to your archive. You can restore it later.')"
+                                        :confirm="__('Archive')"
+                                        tone="primary"
                                         icon="archive-box"
                                     >
-                                        {{ __('Archive') }}
-                                    </flux:menu.item>
+                                        <x-slot:trigger>
+                                            <flux:menu.item icon="archive-box">{{ __('Archive') }}</flux:menu.item>
+                                        </x-slot:trigger>
+                                    </x-confirm>
                                 @endif
                             </flux:menu>
                         </flux:dropdown>

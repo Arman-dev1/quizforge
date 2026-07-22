@@ -103,14 +103,17 @@ new class extends Component {
         </div>
 
         @if ($canManage && ! $response->trashed())
-            <flux:button
-                variant="filled"
+            <x-confirm
+                action="deleteResponse"
+                :title="__('Move to trash?')"
+                :description="__('This response moves to the trash. You can restore it later.')"
+                :confirm="__('Move to trash')"
                 icon="trash"
-                wire:click="deleteResponse"
-                wire:confirm="{{ __('Move this response to trash?') }}"
             >
-                {{ __('Delete') }}
-            </flux:button>
+                <x-slot:trigger>
+                    <flux:button variant="filled" icon="trash">{{ __('Delete') }}</flux:button>
+                </x-slot:trigger>
+            </x-confirm>
         @endif
     </div>
 
