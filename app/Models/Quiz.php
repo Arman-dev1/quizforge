@@ -67,6 +67,11 @@ class Quiz extends Model
         return $this->hasMany(QuizResponse::class);
     }
 
+    public function integrations(): HasMany
+    {
+        return $this->hasMany(QuizIntegration::class);
+    }
+
     public function views(): HasMany
     {
         return $this->hasMany(QuizView::class);

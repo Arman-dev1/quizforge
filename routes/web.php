@@ -35,6 +35,7 @@ Route::middleware(['auth'])->group(function () {
     Volt::route('quizzes/{quiz}/builder', 'quizzes.builder')->name('quizzes.builder');
     Volt::route('quizzes/{quiz}/preview', 'quizzes.preview')->name('quizzes.preview');
 
+    Volt::route('quizzes/{quiz}/integrations', 'quizzes.integrations')->name('quizzes.integrations');
     Volt::route('quizzes/{quiz}/responses', 'quizzes.responses')->name('quizzes.responses');
     Route::get('quizzes/{quiz}/responses/export', ResponseExportController::class)->name('quizzes.responses.export');
     Volt::route('quizzes/{quiz}/responses/{response}', 'quizzes.response-detail')->name('quizzes.responses.show');
@@ -42,7 +43,6 @@ Route::middleware(['auth'])->group(function () {
     Volt::route('quizzes/{quiz}/analytics', 'quizzes.analytics')->name('quizzes.analytics');
 
     Volt::route('leads', 'leads.index')->name('leads.index');
-    Volt::route('integrations', 'integrations.index')->name('integrations.index');
 });
 
 require __DIR__.'/auth.php';

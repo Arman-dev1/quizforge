@@ -215,6 +215,7 @@ new class extends Component {
                     <span class="ml-1 rounded-full bg-zinc-200 px-1.5 text-xs font-semibold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">{{ $responseCount }}</span>
                 @endif
             </flux:button>
+            <flux:button :href="route('quizzes.integrations', $quiz)" wire:navigate variant="filled" icon="bolt">{{ __('Integrations') }}</flux:button>
 
             @if ($canEdit)
                 <flux:button :href="route('quizzes.builder', $quiz)" wire:navigate variant="primary" icon="squares-plus">{{ __('Open builder') }}</flux:button>

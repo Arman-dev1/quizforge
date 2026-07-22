@@ -1,5 +1,11 @@
 <?php
 
+use App\Services\Integrations\Drivers\ActiveCampaignDriver;
+use App\Services\Integrations\Drivers\BrevoDriver;
+use App\Services\Integrations\Drivers\ConvertKitDriver;
+use App\Services\Integrations\Drivers\MailchimpDriver;
+use App\Services\Integrations\Drivers\MailerLiteDriver;
+
 /*
 |--------------------------------------------------------------------------
 | Integration catalog
@@ -29,6 +35,8 @@ return [
             'ink' => '#241C15',
             'initial' => 'M',
             'popular' => true,
+            'driver' => MailchimpDriver::class,
+            'resource_label' => 'Audience',
             'fields' => [
                 'api_key' => 'API key',
             ],
@@ -42,6 +50,8 @@ return [
             'ink' => '#FFFFFF',
             'initial' => 'B',
             'popular' => true,
+            'driver' => BrevoDriver::class,
+            'resource_label' => 'Contact list',
             'fields' => [
                 'api_key' => 'API key',
             ],
@@ -55,6 +65,8 @@ return [
             'ink' => '#FFFFFF',
             'initial' => 'M',
             'popular' => false,
+            'driver' => MailerLiteDriver::class,
+            'resource_label' => 'Group',
             'fields' => [
                 'api_key' => 'API key',
             ],
@@ -68,6 +80,8 @@ return [
             'ink' => '#FFFFFF',
             'initial' => 'A',
             'popular' => true,
+            'driver' => ActiveCampaignDriver::class,
+            'resource_label' => 'List',
             'fields' => [
                 'api_url' => 'API URL',
                 'api_key' => 'API key',
@@ -82,6 +96,8 @@ return [
             'ink' => '#FFFFFF',
             'initial' => 'C',
             'popular' => false,
+            'driver' => ConvertKitDriver::class,
+            'resource_label' => 'Form',
             'fields' => [
                 'api_key' => 'API key',
             ],

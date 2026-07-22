@@ -234,6 +234,11 @@ new #[Layout('components.layouts.player')] class extends Component {
             new \App\Notifications\NewResponse($response),
         );
 
+        // Push the completed response to any connected email-marketing tools.
+        foreach ($quiz->integrations()->where('status', 'connected')->get() as $integration) {
+            \App\Jobs\SyncQuizResponse::dispatch($integration->id, $response->id);
+        }
+
         $this->outcome = [
             'show_score' => $resolved->showScore && $scoreResult !== null && $scoreResult->maxPoints > 0,
             'points' => $scoreResult?->points,
