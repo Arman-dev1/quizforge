@@ -42,6 +42,7 @@ Route::middleware(['auth'])->group(function () {
     Volt::route('quizzes/{quiz}/analytics', 'quizzes.analytics')->name('quizzes.analytics');
 
     Volt::route('leads', 'leads.index')->name('leads.index');
+    Volt::route('integrations', 'integrations.index')->name('integrations.index');
 });
 
 require __DIR__.'/auth.php';

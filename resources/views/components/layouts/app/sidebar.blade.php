@@ -23,6 +23,7 @@
                     <flux:navlist.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>{{ __('Dashboard') }}</flux:navlist.item>
                     <flux:navlist.item icon="puzzle-piece" :href="route('quizzes.index')" :current="request()->routeIs('quizzes.*')" wire:navigate>{{ __('Quizzes') }}</flux:navlist.item>
                     <flux:navlist.item icon="user-plus" :href="route('leads.index')" :current="request()->routeIs('leads.*')" wire:navigate>{{ __('Leads') }}</flux:navlist.item>
+                    <flux:navlist.item icon="puzzle-piece" :href="route('integrations.index')" :current="request()->routeIs('integrations.*')" wire:navigate>{{ __('Integrations') }}</flux:navlist.item>
                 </flux:navlist.group>
             </flux:navlist>
 
