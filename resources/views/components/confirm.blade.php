@@ -19,7 +19,7 @@
     </flux:modal.trigger>
 @endisset
 
-<flux:modal name="{{ $__modal }}" class="w-full max-w-md">
+<flux:modal name="{{ $__modal }}" wire:key="{{ $__modal }}" class="w-full max-w-md">
     <div class="space-y-5">
         <div class="flex gap-3.5">
             <span @class([

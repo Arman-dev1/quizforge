@@ -224,35 +224,44 @@ new class extends Component {
 
                 @if ($quiz->isArchived())
                     <flux:button wire:click="unarchive" variant="filled" icon="arrow-uturn-left">{{ __('Restore to draft') }}</flux:button>
-
-                    <x-confirm
-                        action="deleteQuiz"
-                        :title="__('Delete this quiz?')"
-                        :description="__('This permanently deletes the quiz and all of its responses. This cannot be undone.')"
-                        :confirm="__('Delete quiz')"
-                        icon="trash"
-                    >
-                        <x-slot:trigger>
-                            <flux:button variant="danger" icon="trash">{{ __('Delete') }}</flux:button>
-                        </x-slot:trigger>
-                    </x-confirm>
+                    <flux:button variant="danger" icon="trash" x-on:click="$dispatch('modal-show', { name: 'quiz-delete' })">{{ __('Delete') }}</flux:button>
                 @else
-                    <x-confirm
-                        action="archive"
-                        :title="__('Archive this quiz?')"
-                        :description="__('It will stop accepting responses and move to your archive. You can restore it later.')"
-                        :confirm="__('Archive')"
-                        tone="primary"
-                        icon="archive-box"
-                    >
-                        <x-slot:trigger>
-                            <flux:button variant="filled" icon="archive-box">{{ __('Archive') }}</flux:button>
-                        </x-slot:trigger>
-                    </x-confirm>
+                    <flux:button variant="filled" icon="archive-box" x-on:click="$dispatch('modal-show', { name: 'quiz-archive' })">{{ __('Archive') }}</flux:button>
                 @endif
             @endif
         </div>
     </div>
+
+    {{-- Confirmation modals: always rendered (never behind an @if) so the buttons
+         above, which appear after a state change, always have a live modal to open. --}}
+    @if ($canEdit)
+        <x-confirm
+            name="quiz-archive"
+            action="archive"
+            :title="__('Archive this quiz?')"
+            :description="__('It will stop accepting responses and move to your archive. You can restore it later.')"
+            :confirm="__('Archive')"
+            tone="primary"
+            icon="archive-box"
+        />
+        <x-confirm
+            name="quiz-delete"
+            action="deleteQuiz"
+            :title="__('Delete this quiz?')"
+            :description="__('This permanently deletes the quiz and all of its responses. This cannot be undone.')"
+            :confirm="__('Delete quiz')"
+            icon="trash"
+        />
+        <x-confirm
+            name="quiz-close"
+            action="closeQuiz"
+            :title="__('Close this quiz?')"
+            :description="__('Respondents will see a notice that it is no longer accepting responses. You can reopen it anytime.')"
+            :confirm="__('Close quiz')"
+            tone="primary"
+            icon="lock-closed"
+        />
+    @endif
 
     @error('actions')
         <flux:text class="mt-4 text-red-600 dark:text-red-400">{{ $message }}</flux:text>
@@ -313,18 +322,7 @@ new class extends Component {
                 <div class="flex flex-wrap items-center gap-2">
                     @if ($quiz->status === QuizStatus::Published)
                         <flux:button wire:click="publish" variant="filled" icon="arrow-path">{{ __('Republish changes') }}</flux:button>
-                        <x-confirm
-                            action="closeQuiz"
-                            :title="__('Close this quiz?')"
-                            :description="__('Respondents will see a notice that it is no longer accepting responses. You can reopen it anytime.')"
-                            :confirm="__('Close quiz')"
-                            tone="primary"
-                            icon="lock-closed"
-                        >
-                            <x-slot:trigger>
-                                <flux:button variant="filled" icon="lock-closed">{{ __('Close') }}</flux:button>
-                            </x-slot:trigger>
-                        </x-confirm>
+                        <flux:button variant="filled" icon="lock-closed" x-on:click="$dispatch('modal-show', { name: 'quiz-close' })">{{ __('Close') }}</flux:button>
                     @elseif ($quiz->status === QuizStatus::Closed)
                         <flux:button wire:click="reopen" variant="primary" icon="lock-open">{{ __('Reopen') }}</flux:button>
                         <flux:button wire:click="publish" variant="filled" icon="arrow-path">{{ __('Republish changes') }}</flux:button>

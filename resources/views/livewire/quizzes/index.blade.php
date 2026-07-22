@@ -229,27 +229,26 @@ new class extends Component {
                             </flux:menu>
                         </flux:dropdown>
 
-                        {{-- Confirmation modals live outside the dropdown so the menu can't swallow the click. --}}
-                        @if ($quiz->isArchived())
-                            <x-confirm
-                                :name="'del-quiz-'.$quiz->id"
-                                action="deleteQuiz({{ $quiz->id }})"
-                                :title="__('Delete this quiz?')"
-                                :description="__('This permanently deletes the quiz and all of its responses. This cannot be undone.')"
-                                :confirm="__('Delete quiz')"
-                                icon="trash"
-                            />
-                        @else
-                            <x-confirm
-                                :name="'archive-quiz-'.$quiz->id"
-                                action="archive({{ $quiz->id }})"
-                                :title="__('Archive this quiz?')"
-                                :description="__('It will stop accepting responses and move to your archive. You can restore it later.')"
-                                :confirm="__('Archive')"
-                                tone="primary"
-                                icon="archive-box"
-                            />
-                        @endif
+                        {{-- Both modals are always rendered (outside the dropdown, and never
+                             behind an @if) so a Livewire re-render never has to create a fresh
+                             Flux modal — one created mid-morph does not re-initialise. --}}
+                        <x-confirm
+                            :name="'archive-quiz-'.$quiz->id"
+                            action="archive({{ $quiz->id }})"
+                            :title="__('Archive this quiz?')"
+                            :description="__('It will stop accepting responses and move to your archive. You can restore it later.')"
+                            :confirm="__('Archive')"
+                            tone="primary"
+                            icon="archive-box"
+                        />
+                        <x-confirm
+                            :name="'del-quiz-'.$quiz->id"
+                            action="deleteQuiz({{ $quiz->id }})"
+                            :title="__('Delete this quiz?')"
+                            :description="__('This permanently deletes the quiz and all of its responses. This cannot be undone.')"
+                            :confirm="__('Delete quiz')"
+                            icon="trash"
+                        />
                     @endif
                 </li>
             @endforeach
