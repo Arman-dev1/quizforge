@@ -296,39 +296,64 @@ new #[Layout('components.layouts.player')] class extends Component {
             $page['questions'] = app(LogicEngine::class)->visibleQuestions($page['questions'] ?? [], $this->answers);
         }
 
+        $quiz = $this->quiz();
+        $design = \App\Services\Design\QuizDesign::forQuiz($quiz);
+        $disk = \Illuminate\Support\Facades\Storage::disk('public');
+        $proActive = app(\App\Services\Billing\UsageLimits::class)->planKey($quiz->workspace) !== 'free';
+
         return [
-            'quiz' => $this->quiz(),
+            'quiz' => $quiz,
             'page' => $page,
             'total' => count($pages),
             'progress' => count($pages) > 0 ? (int) round((($this->step + 1) / count($pages)) * 100) : 0,
+            'design' => $design,
+            'designStyle' => \App\Services\Design\QuizDesign::styleAttribute($design),
+            'designBackground' => \App\Services\Design\QuizDesign::backgroundCss($design, $design['background_image'] ? $disk->url($design['background_image']) : null),
+            'designLogo' => $design['logo'] ? $disk->url($design['logo']) : null,
+            'designCover' => $design['cover'] ? $disk->url($design['cover']) : null,
+            'designCustomCss' => $proActive ? str_ireplace('</style', '<\/style', trim((string) ($design['custom_css'] ?? ''))) : '',
+            'designCustomJs' => $proActive ? str_ireplace('</script', '<\/script', trim((string) ($design['custom_js'] ?? ''))) : '',
         ];
     }
 }; ?>
 
-<div class="flex min-h-svh flex-col">
+<div
+    class="flex min-h-svh flex-col"
+    id="qf-player"
+    style="{{ $designStyle }};background:{{ $designBackground }};color:var(--qf-text);font-family:var(--qf-font);font-size:var(--qf-font-size)"
+>
+    <style>
+        #qf-player .qf-primary-btn { background-color: var(--qf-primary) !important; border-color: var(--qf-primary) !important; color: var(--qf-primary-ink) !important; border-radius: var(--qf-btn-radius) !important; }
+        #qf-player .qf-card { border-radius: calc(var(--qf-radius) + 6px) !important; }
+    </style>
+    @if ($designCustomCss !== '')
+        <style>{!! $designCustomCss !!}</style>
+    @endif
+
     @unless ($closed || $completed)
         <div
-            class="h-1.5 w-full bg-zinc-200 dark:bg-zinc-800"
+            class="h-1.5 w-full bg-black/10 dark:bg-white/10"
             role="progressbar"
             aria-valuenow="{{ $progress }}"
             aria-valuemin="0"
             aria-valuemax="100"
             aria-label="{{ __('Quiz progress') }}"
+            @if ($design['progress_style'] === 'hidden') hidden @endif
         >
-            <div class="h-full bg-gradient-to-r from-teal-400 to-teal-500 transition-all duration-300" style="width: {{ $progress }}%"></div>
+            <div class="h-full transition-all duration-300" style="width: {{ $progress }}%;background:var(--qf-primary)"></div>
         </div>
     @endunless
 
     <main class="mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 py-10 sm:px-6">
         @if ($closed)
-            <div class="m-auto rounded-2xl border border-zinc-200 bg-white p-10 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <div class="qf-card m-auto rounded-2xl border border-zinc-200 bg-white p-10 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
                 <flux:icon.lock-closed class="mx-auto size-10 text-zinc-400" />
                 <flux:heading size="lg" class="mt-4">{{ $quiz->name }}</flux:heading>
                 <flux:subheading class="mt-1">{{ __('This quiz is no longer accepting responses.') }}</flux:subheading>
             </div>
         @elseif ($completed)
-            <div class="m-auto w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-10 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-                <span class="mx-auto flex size-14 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-teal-500">
+            <div class="qf-card m-auto w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-10 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+                <span class="mx-auto flex size-14 items-center justify-center rounded-full" style="background:var(--qf-primary)">
                     <flux:icon.check class="size-7 text-white" />
                 </span>
 
@@ -371,14 +396,21 @@ new #[Layout('components.layouts.player')] class extends Component {
                 @endif
 
                 @if ($outcome['redirect'] ?? null)
-                    <flux:button href="{{ $outcome['redirect'] }}" variant="primary" class="mt-6">
+                    <flux:button href="{{ $outcome['redirect'] }}" variant="primary" class="qf-primary-btn mt-6">
                         {{ __('Continue') }}
                     </flux:button>
                 @endif
             </div>
         @elseif ($page)
+            @if ($designCover)
+                <img src="{{ $designCover }}" alt="" class="qf-card mb-6 h-40 w-full border border-black/5 object-cover shadow-sm" />
+            @endif
+
             @if ($step === 0)
                 <div class="mb-6 text-center">
+                    @if ($designLogo)
+                        <img src="{{ $designLogo }}" alt="" class="mx-auto mb-4 h-12 w-auto" />
+                    @endif
                     <flux:heading size="xl">{{ $quiz->name }}</flux:heading>
                     @if ($quiz->description)
                         <flux:subheading class="mt-1">{{ $quiz->description }}</flux:subheading>
@@ -386,7 +418,7 @@ new #[Layout('components.layouts.player')] class extends Component {
                 </div>
             @endif
 
-            <div class="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8 dark:border-zinc-800 dark:bg-zinc-900">
+            <div class="qf-card rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8 dark:border-zinc-800 dark:bg-zinc-900">
                 @if (($page['title'] ?? null) || ($page['description'] ?? null))
                     <div class="mb-8">
                         @if ($page['title'] ?? null)
@@ -422,14 +454,22 @@ new #[Layout('components.layouts.player')] class extends Component {
                     </flux:text>
                 @endif
 
-                <flux:button wire:click="next" variant="primary" icon-trailing="{{ $step < $total - 1 ? 'arrow-right' : 'check' }}">
+                <flux:button wire:click="next" variant="primary" class="qf-primary-btn" icon-trailing="{{ $step < $total - 1 ? 'arrow-right' : 'check' }}">
                     {{ $step < $total - 1 ? __('Next') : __('Submit') }}
                 </flux:button>
             </div>
         @endif
 
-        <p class="mt-8 text-center text-xs text-zinc-400 dark:text-zinc-500">
+        <p class="mt-8 text-center text-xs" style="color:var(--qf-muted)">
             {{ __('Powered by') }} <span class="font-semibold">QuizForge</span>
         </p>
     </main>
+
+    @if ($designCustomJs !== '')
+        @script
+            <script>
+                {!! $designCustomJs !!}
+            </script>
+        @endscript
+    @endif
 </div>

@@ -34,6 +34,7 @@ Route::middleware(['auth'])->group(function () {
     Volt::route('quizzes/{quiz}', 'quizzes.show')->name('quizzes.show');
     Volt::route('quizzes/{quiz}/builder', 'quizzes.builder')->name('quizzes.builder');
     Volt::route('quizzes/{quiz}/preview', 'quizzes.preview')->name('quizzes.preview');
+    Volt::route('quizzes/{quiz}/design', 'quizzes.design')->name('quizzes.design');
 
     Volt::route('quizzes/{quiz}/integrations', 'quizzes.integrations')->name('quizzes.integrations');
     Volt::route('quizzes/{quiz}/responses', 'quizzes.responses')->name('quizzes.responses');
