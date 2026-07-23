@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 use App\Actions\Quizzes\PublishQuiz;
 use App\Enums\QuestionType;
@@ -7,27 +7,40 @@ use App\Models\Question;
 use App\Models\Quiz;
 use App\Models\QuizPage;
 use App\Services\Logic\LogicEngine;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
-new #[Layout('components.layouts.builder')] class extends Component {
+new #[Layout('components.layouts.builder')] class extends Component
+{
     public Quiz $quiz;
 
     public ?int $selectedQuestionId = null;
+
     public ?int $pickingForPageId = null;
 
     public string $qTitle = '';
+
     public string $qDescription = '';
+
     public string $qHelpText = '';
+
     public string $qPlaceholder = '';
+
     public bool $qRequired = false;
+
     public bool $qHidden = false;
+
     public array $qSettings = [];
+
     public string $qMatrixRows = '';
+
     public string $qMatrixColumns = '';
+
     public string $qLogicMatch = 'all';
 
     /** @var array<int, array{question_id: mixed, operator: string, value: string}> */
@@ -312,7 +325,7 @@ new #[Layout('components.layouts.builder')] class extends Component {
     public function updated(string $name, $value): void
     {
         if (str_starts_with($name, 'pageTitles.')) {
-            $pageId = (int) \Illuminate\Support\Str::afterLast($name, '.');
+            $pageId = (int) Str::afterLast($name, '.');
             $this->quiz->pages()->findOrFail($pageId)
                 ->update(['title' => trim((string) $value) !== '' ? mb_substr(trim((string) $value), 0, 150) : null]);
             $this->dispatch('builder-saved');
@@ -321,7 +334,7 @@ new #[Layout('components.layouts.builder')] class extends Component {
         }
 
         if (str_starts_with($name, 'optionLabels.')) {
-            $optionId = (int) \Illuminate\Support\Str::afterLast($name, '.');
+            $optionId = (int) Str::afterLast($name, '.');
             $question = $this->selectedQuestion();
 
             $question?->options()->findOrFail($optionId)
@@ -507,7 +520,7 @@ new #[Layout('components.layouts.builder')] class extends Component {
     /**
      * Questions that may act as triggers: anything on an earlier page.
      */
-    protected function logicTriggers(): \Illuminate\Support\Collection
+    protected function logicTriggers(): Collection
     {
         $question = $this->selectedQuestion();
 
@@ -676,6 +689,59 @@ new #[Layout('components.layouts.builder')] class extends Component {
         }
 
         $this->pickingForPageId = null;
+        $this->selectQuestion($question->id);
+    }
+
+    /**
+     * Convert the selected question to a different type, reconciling its
+     * options and settings so the switch never leaves the question in an
+     * invalid state.
+     */
+    public function changeType(string $type): void
+    {
+        $question = $this->selectedQuestion();
+
+        if (! $question) {
+            return;
+        }
+
+        $newType = QuestionType::from($type);
+
+        if ($newType === $question->type) {
+            return;
+        }
+
+        $this->pushHistory();
+
+        $question->update([
+            'type' => $newType,
+            'settings' => $newType->defaultSettings(),
+        ]);
+
+        if ($newType->hasOptions()) {
+            // Seed defaults only when coming from a type that had none.
+            if ($question->options()->count() === 0) {
+                foreach ($newType->defaultOptionLabels() as $index => $label) {
+                    $question->options()->create(['label' => $label, 'position' => $index]);
+                }
+            }
+
+            // Single-answer types keep at most one correct option.
+            if (! $newType->supportsCorrectAnswers()) {
+                $question->options()->update(['is_correct' => false]);
+            } elseif ($newType !== QuestionType::MultipleChoice) {
+                $keepId = $question->options()->where('is_correct', true)->orderBy('position')->value('id');
+                $question->options()->update(['is_correct' => false]);
+
+                if ($keepId) {
+                    $question->options()->whereKey($keepId)->update(['is_correct' => true]);
+                }
+            }
+        } else {
+            $question->options()->delete();
+        }
+
+        $this->resolvedQuestion = null;
         $this->selectQuestion($question->id);
     }
 
@@ -1113,14 +1179,28 @@ new #[Layout('components.layouts.builder')] class extends Component {
             <div class="flex items-end justify-between gap-3">
                 <div class="min-w-0 flex-1">
                     <p class="mb-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-200">{{ __('Question type') }}</p>
-                    <div class="flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-800/50">
+                    <div class="relative flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 transition hover:border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800/50 dark:hover:border-zinc-600">
                         <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white text-teal-600 shadow-sm dark:bg-zinc-900 dark:text-teal-400">
                             <flux:icon :icon="$selected->type->icon()" class="size-5" />
                         </span>
-                        <div class="min-w-0">
+                        <div class="min-w-0 flex-1">
                             <p class="truncate font-semibold text-zinc-900 dark:text-white">{{ $selected->type->label() }}</p>
                             <p class="truncate text-xs text-zinc-500 dark:text-zinc-400">{{ $selected->type->description() }}</p>
                         </div>
+                        <flux:icon.chevron-up-down class="size-5 shrink-0 text-zinc-400" />
+                        <select
+                            x-on:change="$wire.changeType($event.target.value)"
+                            aria-label="{{ __('Change question type') }}"
+                            class="absolute inset-0 size-full cursor-pointer opacity-0"
+                        >
+                            @foreach ($typeGroups as $category => $types)
+                                <optgroup label="{{ $category }}">
+                                    @foreach ($types as $type)
+                                        <option value="{{ $type->value }}" @selected($type === $selected->type)>{{ $type->label() }}</option>
+                                    @endforeach
+                                </optgroup>
+                            @endforeach
+                        </select>
                     </div>
                 </div>
 
@@ -1220,7 +1300,10 @@ new #[Layout('components.layouts.builder')] class extends Component {
 
                     <div>
                         <div class="flex items-center justify-between">
-                            <flux:heading>{{ __('Options') }}</flux:heading>
+                            <div class="flex items-center gap-2">
+                                <flux:icon.list-bullet class="size-4 text-zinc-400" />
+                                <flux:heading>{{ __('Options') }}</flux:heading>
+                            </div>
                             @if ($selected->type->supportsCorrectAnswers())
                                 <span class="text-xs font-medium text-zinc-400 dark:text-zinc-500">{{ __('Tick to mark correct') }}</span>
                             @endif
@@ -1298,7 +1381,10 @@ new #[Layout('components.layouts.builder')] class extends Component {
                 @if (in_array($selected->type, [\App\Enums\QuestionType::Rating, \App\Enums\QuestionType::OpinionScale, \App\Enums\QuestionType::LinearScale, \App\Enums\QuestionType::Nps, \App\Enums\QuestionType::ShortText, \App\Enums\QuestionType::LongText, \App\Enums\QuestionType::Number, \App\Enums\QuestionType::Matrix], true))
                     <flux:separator />
 
-                    <flux:heading>{{ __('Type settings') }}</flux:heading>
+                    <div class="flex items-center gap-2">
+                        <flux:icon.adjustments-horizontal class="size-4 text-zinc-400" />
+                        <flux:heading>{{ __('Type settings') }}</flux:heading>
+                    </div>
 
                     @if ($selected->type === \App\Enums\QuestionType::Rating)
                         <flux:input wire:model.live.debounce.500ms="qSettings.max" label="{{ __('Number of stars (2–10)') }}" type="number" min="2" max="10" class="max-w-40" />
@@ -1333,7 +1419,10 @@ new #[Layout('components.layouts.builder')] class extends Component {
                     <flux:separator />
 
                     <div>
-                        <flux:heading>{{ __('Scoring') }}</flux:heading>
+                        <div class="flex items-center gap-2">
+                            <flux:icon.academic-cap class="size-4 text-zinc-400" />
+                            <flux:heading>{{ __('Scoring') }}</flux:heading>
+                        </div>
                         @unless ($quizScored)
                             <flux:subheading class="text-xs">{{ __('Mark correct options above. Enable scoring in the quiz settings to grade responses.') }}</flux:subheading>
                         @endunless
@@ -1351,7 +1440,10 @@ new #[Layout('components.layouts.builder')] class extends Component {
                     <div>
                         <div class="flex items-center justify-between">
                             <div>
-                                <flux:heading>{{ __('Visibility') }}</flux:heading>
+                                <div class="flex items-center gap-2">
+                                    <flux:icon.eye class="size-4 text-zinc-400" />
+                                    <flux:heading>{{ __('Visibility') }}</flux:heading>
+                                </div>
                                 <flux:subheading class="text-xs">{{ __('Show this question only when answers from earlier pages match.') }}</flux:subheading>
                             </div>
 

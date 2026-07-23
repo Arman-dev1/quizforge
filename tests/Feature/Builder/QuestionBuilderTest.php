@@ -83,6 +83,48 @@ class QuestionBuilderTest extends TestCase
         $this->assertSame(0, $quiz->versions()->count());
     }
 
+    public function test_changing_type_reconciles_options(): void
+    {
+        [$user, $quiz] = $this->editorWithQuiz();
+        $this->actingAs($user);
+
+        $component = Volt::test('quizzes.builder', ['quiz' => $quiz])
+            ->call('startPicking', $quiz->pages()->first()->id)
+            ->call('addQuestion', 'single_choice');
+
+        $question = $quiz->questions()->first();
+        $this->assertSame(3, $question->options()->count());
+
+        // Switch to a type without options: options are dropped.
+        $component->call('changeType', 'short_text');
+        $this->assertSame(QuestionType::ShortText, $question->refresh()->type);
+        $this->assertSame(0, $question->options()->count());
+
+        // Switch back to a choice type: defaults are re-seeded.
+        $component->call('changeType', 'multiple_choice');
+        $this->assertSame(QuestionType::MultipleChoice, $question->refresh()->type);
+        $this->assertGreaterThan(0, $question->options()->count());
+    }
+
+    public function test_changing_to_a_single_answer_type_keeps_one_correct_option(): void
+    {
+        [$user, $quiz] = $this->editorWithQuiz();
+        $this->actingAs($user);
+
+        $component = Volt::test('quizzes.builder', ['quiz' => $quiz])
+            ->call('startPicking', $quiz->pages()->first()->id)
+            ->call('addQuestion', 'multiple_choice');
+
+        $question = $quiz->questions()->first();
+        [$a, $b] = $question->options()->orderBy('position')->take(2)->get()->all();
+
+        $component->call('toggleCorrect', $a->id)->call('toggleCorrect', $b->id);
+        $this->assertSame(2, $question->options()->where('is_correct', true)->count());
+
+        $component->call('changeType', 'single_choice');
+        $this->assertSame(1, $question->refresh()->options()->where('is_correct', true)->count());
+    }
+
     public function test_builder_is_forbidden_to_viewers(): void
     {
         [$user, $quiz] = $this->editorWithQuiz(WorkspaceRole::Viewer);

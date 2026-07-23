@@ -271,6 +271,7 @@ new class extends Component {
 
     @if ($canEdit)
         <div class="mt-8 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+            <x-card-heading class="mb-5" icon="document-text" :title="__('Details')" />
             <form wire:submit="updateDetails" class="space-y-6">
                 <div class="grid gap-6 lg:grid-cols-2 lg:items-start">
                     <flux:input
@@ -310,8 +311,7 @@ new class extends Component {
     @if ($canEdit)
         <div class="mt-4 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
             <div class="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                    <flux:heading>{{ __('Sharing') }}</flux:heading>
+                <x-card-heading class="min-w-0" icon="share" :title="__('Sharing')">
                     <flux:subheading>
                         @if ($quiz->status === QuizStatus::Published)
                             {{ __('Live on version :version. Edits stay private until you republish.', ['version' => $quiz->latestVersion()?->version]) }}
@@ -321,7 +321,7 @@ new class extends Component {
                             {{ __('Publish to get a public link you can share anywhere.') }}
                         @endif
                     </flux:subheading>
-                </div>
+                </x-card-heading>
 
                 <div class="flex flex-wrap items-center gap-2">
                     @if ($quiz->status === QuizStatus::Published)
@@ -366,8 +366,9 @@ new class extends Component {
 
     @if ($canEdit)
         <div class="mt-4 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-            <flux:heading>{{ __('Scoring & results') }}</flux:heading>
-            <flux:subheading>{{ __('Grade responses and control what respondents see when they finish.') }}</flux:subheading>
+            <x-card-heading icon="academic-cap" tone="amber" :title="__('Scoring & results')">
+                <flux:subheading>{{ __('Grade responses and control what respondents see when they finish.') }}</flux:subheading>
+            </x-card-heading>
 
             <form wire:submit="saveResults" class="mt-5 space-y-5">
                 <div class="flex items-center gap-6">
@@ -423,9 +424,8 @@ new class extends Component {
         </div>
     @endif
 
-    <div class="mt-4 flex items-center justify-between rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-        <div>
-            <flux:heading>{{ __('Questions') }}</flux:heading>
+    <div class="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+        <x-card-heading class="min-w-0" icon="queue-list" tone="indigo" :title="__('Questions')">
             <flux:subheading>
                 {{ trans_choice('{0}No questions yet — open the builder to add some.|{1}:count question across :pages :pageWord.|[2,*]:count questions across :pages :pageWord.', $quiz->questions()->count(), [
                     'count' => $quiz->questions()->count(),
@@ -433,7 +433,7 @@ new class extends Component {
                     'pageWord' => trans_choice('page|pages', max($quiz->pages()->count(), 1)),
                 ]) }}
             </flux:subheading>
-        </div>
+        </x-card-heading>
 
         @if ($canEdit)
             <flux:button :href="route('quizzes.builder', $quiz)" wire:navigate variant="primary" icon="squares-plus">
