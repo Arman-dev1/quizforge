@@ -55,6 +55,37 @@ enum QuestionType: string
         };
     }
 
+    /**
+     * Short one-line description shown on the type-picker cards.
+     */
+    public function description(): string
+    {
+        return match ($this) {
+            self::SingleChoice => __('One answer only'),
+            self::MultipleChoice => __('Select several'),
+            self::Dropdown => __('Compact list'),
+            self::ImageChoice => __('Pick a picture'),
+            self::YesNo => __('Binary answer'),
+            self::Ranking => __('Order by preference'),
+            self::ShortText => __('Single line'),
+            self::LongText => __('Paragraph answer'),
+            self::Email => __('Validated address'),
+            self::Phone => __('Number with format'),
+            self::Website => __('URL field'),
+            self::Address => __('Multi-line location'),
+            self::Rating => __('Stars 1–5'),
+            self::OpinionScale => __('Agree → disagree'),
+            self::LinearScale => __('Numbered range'),
+            self::Nps => __('0–10 NPS'),
+            self::Number => __('Numeric input'),
+            self::Date => __('Calendar picker'),
+            self::Time => __('Hour & minute'),
+            self::FileUpload => __('Accept documents'),
+            self::Signature => __('Draw to sign'),
+            self::Matrix => __('Grid of choices'),
+        };
+    }
+
     public function icon(): string
     {
         return match ($this) {

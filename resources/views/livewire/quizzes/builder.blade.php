@@ -1,5 +1,6 @@
 ﻿<?php
 
+use App\Actions\Quizzes\PublishQuiz;
 use App\Enums\QuestionType;
 use App\Models\LibraryQuestion;
 use App\Models\Question;
@@ -8,6 +9,7 @@ use App\Models\QuizPage;
 use App\Services\Logic\LogicEngine;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
@@ -827,6 +829,33 @@ new #[Layout('components.layouts.builder')] class extends Component {
         $question->load('options');
     }
 
+    /**
+     * Flip a boolean flag on the selected question and persist it through
+     * the same autosave path the checkboxes use. Backs the pill toggles.
+     */
+    public function toggleFlag(string $flag): void
+    {
+        if (! in_array($flag, ['qRequired', 'qHidden'], true)) {
+            return;
+        }
+
+        $this->{$flag} = ! $this->{$flag};
+        $this->updated($flag, $this->{$flag});
+    }
+
+    public function publish(PublishQuiz $publishQuiz): void
+    {
+        $this->authorize('update', $this->quiz);
+
+        try {
+            $publishQuiz->handle($this->quiz, Auth::user());
+            $this->quiz->refresh();
+            $this->dispatch('quiz-published');
+        } catch (ValidationException $e) {
+            $this->addError('publish', $e->errors()['publish'][0] ?? __('Could not publish this quiz.'));
+        }
+    }
+
     public function with(): array
     {
         return [
@@ -960,80 +989,139 @@ new #[Layout('components.layouts.builder')] class extends Component {
                 <x-action-message on="builder-saved" class="ml-1.5 font-mono text-xs text-zinc-400">{{ __('All changes saved') }}</x-action-message>
             </div>
 
-            <flux:button variant="filled" size="sm" icon="eye" href="{{ route('quizzes.preview', $quiz) }}" target="_blank">
-                {{ __('Preview') }}
-            </flux:button>
+            <div class="flex items-center gap-2">
+                <x-action-message on="quiz-published" class="text-xs font-semibold text-teal-600 dark:text-teal-400">{{ __('Published!') }}</x-action-message>
+                <flux:button variant="filled" size="sm" icon="eye" href="{{ route('quizzes.preview', $quiz) }}" target="_blank">
+                    {{ __('Preview') }}
+                </flux:button>
+                <flux:button variant="primary" size="sm" icon="paper-airplane" wire:click="publish">
+                    {{ $quiz->status === \App\Enums\QuizStatus::Published ? __('Republish') : __('Publish') }}
+                </flux:button>
+            </div>
         </header>
 
-        <div class="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-9">
-            <div class="mx-auto max-w-3xl">
-        @if ($pickingForPageId)
-            <div class="flex items-center justify-between">
-                <flux:heading size="lg">{{ __('Choose a question type') }}</flux:heading>
-                <flux:button variant="subtle" size="sm" wire:click="cancelPicking">{{ __('Cancel') }}</flux:button>
+        @error('publish')
+            <div class="flex items-center gap-2 border-b border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 sm:px-6 dark:border-red-900 dark:bg-red-950/50 dark:text-red-300">
+                <flux:icon.exclamation-triangle class="size-4 shrink-0" />
+                {{ $message }}
             </div>
+        @enderror
 
-            <div class="mt-6 space-y-6">
-                @if ($libraryQuestions->isNotEmpty())
-                    <div>
-                        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ __('Your library') }}</p>
+        <div class="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-9">
+        @if ($pickingForPageId)
+            <div
+                x-data="{
+                    q: '',
+                    show(name) { return name.toLowerCase().includes(this.q.trim().toLowerCase()); },
+                }"
+            >
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <flux:heading size="xl" class="tracking-tight">{{ __('Choose a question type') }}</flux:heading>
+                        <flux:subheading>{{ __('Pick how respondents will answer. You can change this later.') }}</flux:subheading>
+                    </div>
+                    <flux:button variant="subtle" size="sm" icon="x-mark" wire:click="cancelPicking">{{ __('Cancel') }}</flux:button>
+                </div>
 
-                        <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                            @foreach ($libraryQuestions as $libraryQuestion)
-                                <div class="flex items-center gap-1 rounded-lg border border-zinc-200 transition hover:border-teal-300 dark:border-zinc-700 dark:hover:border-teal-800" wire:key="lib-{{ $libraryQuestion->id }}">
+                <div class="relative mt-6 max-w-xl">
+                    <flux:icon.magnifying-glass class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-zinc-400" />
+                    <input
+                        type="text"
+                        x-model="q"
+                        placeholder="{{ __('Search question types') }}"
+                        aria-label="{{ __('Search question types') }}"
+                        class="w-full rounded-lg border-zinc-300 bg-white py-2.5 pr-3 pl-9 text-sm shadow-sm focus:border-teal-500 focus:ring-teal-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                    />
+                </div>
+
+                <div class="mt-6 space-y-8">
+                    @if ($libraryQuestions->isNotEmpty())
+                        @php($libraryLabels = $libraryQuestions->pluck('name')->all())
+                        <div x-show="{{ \Illuminate\Support\Js::from($libraryLabels) }}.some(n => show(n))">
+                            <p class="mb-3 font-mono text-[10px] font-semibold tracking-[0.12em] text-zinc-400 uppercase">{{ __('Your library') }}</p>
+
+                            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                                @foreach ($libraryQuestions as $libraryQuestion)
+                                    <div x-show="show(@js($libraryQuestion->name))" class="group flex items-center gap-1 rounded-xl border border-zinc-200 bg-white transition hover:border-teal-300 hover:shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-teal-800" wire:key="lib-{{ $libraryQuestion->id }}">
+                                        <button
+                                            type="button"
+                                            wire:click="addLibraryQuestion({{ $libraryQuestion->id }})"
+                                            class="flex min-w-0 flex-1 items-center gap-3 p-3.5 text-left"
+                                        >
+                                            <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500 group-hover:bg-teal-50 group-hover:text-teal-600 dark:bg-zinc-800 dark:text-zinc-400">
+                                                <flux:icon :icon="\App\Enums\QuestionType::from($libraryQuestion->question['type'])->icon()" class="size-5" />
+                                            </span>
+                                            <span class="min-w-0 flex-1 truncate text-sm font-semibold text-zinc-900 dark:text-white">{{ $libraryQuestion->name }}</span>
+                                        </button>
+                                        <x-confirm
+                                            :name="'del-lib-'.$libraryQuestion->id"
+                                            action="deleteLibraryQuestion({{ $libraryQuestion->id }})"
+                                            :title="__('Remove from library?')"
+                                            :description="__('This removes the saved question from your workspace library.')"
+                                            :confirm="__('Remove')"
+                                            icon="x-mark"
+                                        >
+                                            <x-slot:trigger>
+                                                <flux:button variant="subtle" size="xs" icon="x-mark" class="mr-1" aria-label="{{ __('Remove from library') }}" />
+                                            </x-slot:trigger>
+                                        </x-confirm>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
+                    @foreach ($typeGroups as $category => $types)
+                        @php($categoryLabels = collect($types)->map->label()->all())
+                        <div x-show="{{ \Illuminate\Support\Js::from($categoryLabels) }}.some(n => show(n))">
+                            <p class="mb-3 font-mono text-[10px] font-semibold tracking-[0.12em] text-zinc-400 uppercase">{{ $category }}</p>
+
+                            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                                @foreach ($types as $type)
                                     <button
                                         type="button"
-                                        wire:click="addLibraryQuestion({{ $libraryQuestion->id }})"
-                                        class="flex min-w-0 flex-1 items-center gap-3 p-3 text-left"
+                                        wire:click="addQuestion('{{ $type->value }}')"
+                                        wire:key="qtype-{{ $type->value }}"
+                                        x-show="show(@js($type->label()))"
+                                        class="group flex items-start gap-3 rounded-xl border border-zinc-200 bg-white p-4 text-left transition hover:border-teal-300 hover:shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-teal-800"
                                     >
-                                        <flux:icon :icon="\App\Enums\QuestionType::from($libraryQuestion->question['type'])->icon()" class="size-5 shrink-0 text-zinc-500 dark:text-zinc-400" />
-                                        <span class="min-w-0 flex-1 truncate text-sm font-medium text-zinc-800 dark:text-white">{{ $libraryQuestion->name }}</span>
+                                        <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500 transition group-hover:bg-teal-50 group-hover:text-teal-600 dark:bg-zinc-800 dark:text-zinc-400 dark:group-hover:bg-teal-950/60 dark:group-hover:text-teal-400">
+                                            <flux:icon :icon="$type->icon()" class="size-5" />
+                                        </span>
+                                        <span class="min-w-0">
+                                            <span class="block text-sm font-semibold text-zinc-900 dark:text-white">{{ $type->label() }}</span>
+                                            <span class="mt-0.5 block text-xs text-zinc-500 dark:text-zinc-400">{{ $type->description() }}</span>
+                                        </span>
                                     </button>
-                                    <x-confirm
-                                        :name="'del-lib-'.$libraryQuestion->id"
-                                        action="deleteLibraryQuestion({{ $libraryQuestion->id }})"
-                                        :title="__('Remove from library?')"
-                                        :description="__('This removes the saved question from your workspace library.')"
-                                        :confirm="__('Remove')"
-                                        icon="x-mark"
-                                    >
-                                        <x-slot:trigger>
-                                            <flux:button variant="subtle" size="xs" icon="x-mark" class="mr-1" aria-label="{{ __('Remove from library') }}" />
-                                        </x-slot:trigger>
-                                    </x-confirm>
-                                </div>
-                            @endforeach
+                                @endforeach
+                            </div>
                         </div>
-                    </div>
-                @endif
+                    @endforeach
 
-                @foreach ($typeGroups as $category => $types)
-                    <div>
-                        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ $category }}</p>
-
-                        <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                            @foreach ($types as $type)
-                                <button
-                                    type="button"
-                                    wire:click="addQuestion('{{ $type->value }}')"
-                                    wire:key="qtype-{{ $type->value }}"
-                                    class="flex items-center gap-3 rounded-lg border border-zinc-200 p-3 text-left transition hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:border-zinc-600 dark:hover:bg-zinc-800/60"
-                                >
-                                    <flux:icon :icon="$type->icon()" class="size-5 shrink-0 text-zinc-500 dark:text-zinc-400" />
-                                    <span class="text-sm font-medium text-zinc-800 dark:text-white">{{ $type->label() }}</span>
-                                </button>
-                            @endforeach
-                        </div>
+                    <div
+                        x-show="!{{ \Illuminate\Support\Js::from(collect($typeGroups)->flatten()->map->label()->all()) }}.some(n => show(n))"
+                        x-cloak
+                        class="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 py-12 text-center dark:border-zinc-700"
+                    >
+                        <flux:icon.magnifying-glass class="size-7 text-zinc-400" />
+                        <p class="mt-3 text-sm font-medium text-zinc-600 dark:text-zinc-300">{{ __('No question types match') }} “<span x-text="q"></span>”.</p>
                     </div>
-                @endforeach
+                </div>
             </div>
         @elseif ($selected)
-            <div class="flex flex-wrap items-center justify-between gap-3">
-                <div class="flex items-center gap-2">
-                    <span class="flex size-8 items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800">
-                        <flux:icon :icon="$selected->type->icon()" class="size-4 text-zinc-500 dark:text-zinc-400" />
-                    </span>
-                    <flux:heading>{{ $selected->type->label() }}</flux:heading>
+            <div class="max-w-3xl">
+            <div class="flex items-end justify-between gap-3">
+                <div class="min-w-0 flex-1">
+                    <p class="mb-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-200">{{ __('Question type') }}</p>
+                    <div class="flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-800/50">
+                        <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white text-teal-600 shadow-sm dark:bg-zinc-900 dark:text-teal-400">
+                            <flux:icon :icon="$selected->type->icon()" class="size-5" />
+                        </span>
+                        <div class="min-w-0">
+                            <p class="truncate font-semibold text-zinc-900 dark:text-white">{{ $selected->type->label() }}</p>
+                            <p class="truncate text-xs text-zinc-500 dark:text-zinc-400">{{ $selected->type->description() }}</p>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="flex items-center gap-1">
@@ -1056,7 +1144,7 @@ new #[Layout('components.layouts.builder')] class extends Component {
                 </div>
             </div>
 
-            <div class="mt-6 max-w-2xl space-y-5">
+            <div class="mt-6 space-y-5">
                 <flux:input
                     wire:model.live.debounce.500ms="qTitle"
                     label="{{ __('Question title') }}"
@@ -1086,9 +1174,33 @@ new #[Layout('components.layouts.builder')] class extends Component {
                     @endif
                 </div>
 
-                <div class="flex items-center gap-6">
-                    <flux:checkbox wire:model.live="qRequired" label="{{ __('Required') }}" />
-                    <flux:checkbox wire:model.live="qHidden" label="{{ __('Hidden') }}" />
+                <div class="flex items-center gap-2.5">
+                    <button
+                        type="button"
+                        wire:click="toggleFlag('qRequired')"
+                        @class([
+                            'inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition',
+                            'border-teal-600 bg-teal-600 text-white' => $qRequired,
+                            'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800' => ! $qRequired,
+                        ])
+                        aria-pressed="{{ $qRequired ? 'true' : 'false' }}"
+                    >
+                        <flux:icon.check class="size-4 {{ $qRequired ? '' : 'opacity-30' }}" />
+                        {{ __('Required') }}
+                    </button>
+                    <button
+                        type="button"
+                        wire:click="toggleFlag('qHidden')"
+                        @class([
+                            'inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition',
+                            'border-zinc-800 bg-zinc-800 text-white dark:border-zinc-200 dark:bg-zinc-200 dark:text-zinc-900' => $qHidden,
+                            'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800' => ! $qHidden,
+                        ])
+                        aria-pressed="{{ $qHidden ? 'true' : 'false' }}"
+                    >
+                        <flux:icon.eye-slash class="size-4 {{ $qHidden ? '' : 'opacity-30' }}" />
+                        {{ __('Hidden') }}
+                    </button>
                 </div>
 
                 @if ($selected->type->hasOptions())
@@ -1259,6 +1371,7 @@ new #[Layout('components.layouts.builder')] class extends Component {
                     </div>
                 @endif
             </div>
+            </div>
         @else
             <div class="flex h-full min-h-64 flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 p-10 text-center dark:border-zinc-600">
                 <flux:icon.cursor-arrow-rays class="size-8 text-zinc-400" />
@@ -1268,7 +1381,6 @@ new #[Layout('components.layouts.builder')] class extends Component {
                 </flux:subheading>
             </div>
         @endif
-            </div>
         </div>
     </div>
 </div>

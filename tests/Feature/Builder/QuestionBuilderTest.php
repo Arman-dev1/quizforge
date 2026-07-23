@@ -3,6 +3,7 @@
 namespace Tests\Feature\Builder;
 
 use App\Enums\QuestionType;
+use App\Enums\QuizStatus;
 use App\Enums\WorkspaceRole;
 use App\Models\Quiz;
 use App\Models\User;
@@ -34,6 +35,52 @@ class QuestionBuilderTest extends TestCase
             ->assertOk();
 
         $this->assertSame(1, $quiz->pages()->count());
+    }
+
+    public function test_pill_toggles_flip_required_and_hidden_and_persist(): void
+    {
+        [$user, $quiz] = $this->editorWithQuiz();
+        $this->actingAs($user);
+
+        $component = Volt::test('quizzes.builder', ['quiz' => $quiz])
+            ->call('startPicking', $quiz->pages()->first()->id)
+            ->call('addQuestion', 'short_text');
+
+        $question = $quiz->questions()->first();
+
+        $component->call('toggleFlag', 'qRequired')->assertSet('qRequired', true);
+        $this->assertTrue($question->refresh()->is_required);
+
+        $component->call('toggleFlag', 'qHidden')->assertSet('qHidden', true);
+        $this->assertTrue($question->refresh()->is_hidden);
+    }
+
+    public function test_publish_from_the_builder_snapshots_a_version(): void
+    {
+        [$user, $quiz] = $this->editorWithQuiz();
+        $this->actingAs($user);
+
+        Volt::test('quizzes.builder', ['quiz' => $quiz])
+            ->call('startPicking', $quiz->pages()->first()->id)
+            ->call('addQuestion', 'short_text')
+            ->set('qTitle', 'Your name')
+            ->call('publish')
+            ->assertHasNoErrors();
+
+        $this->assertSame(QuizStatus::Published, $quiz->refresh()->status);
+        $this->assertSame(1, $quiz->versions()->count());
+    }
+
+    public function test_publish_surfaces_a_validation_error_when_there_is_nothing_to_publish(): void
+    {
+        [$user, $quiz] = $this->editorWithQuiz();
+        $this->actingAs($user);
+
+        Volt::test('quizzes.builder', ['quiz' => $quiz])
+            ->call('publish')
+            ->assertHasErrors('publish');
+
+        $this->assertSame(0, $quiz->versions()->count());
     }
 
     public function test_builder_is_forbidden_to_viewers(): void
