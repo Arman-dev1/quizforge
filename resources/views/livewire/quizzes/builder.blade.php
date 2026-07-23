@@ -1109,7 +1109,7 @@ new #[Layout('components.layouts.builder')] class extends Component {
                 </div>
             </div>
         @elseif ($selected)
-            <div class="max-w-3xl">
+            <div class="max-w-4xl">
             <div class="flex items-end justify-between gap-3">
                 <div class="min-w-0 flex-1">
                     <p class="mb-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-200">{{ __('Question type') }}</p>
@@ -1174,31 +1174,43 @@ new #[Layout('components.layouts.builder')] class extends Component {
                     @endif
                 </div>
 
-                <div class="flex items-center gap-2.5">
+                <div class="flex items-center gap-3">
                     <button
                         type="button"
                         wire:click="toggleFlag('qRequired')"
                         @class([
-                            'inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition',
-                            'border-teal-600 bg-teal-600 text-white' => $qRequired,
+                            'inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition',
+                            'border-teal-500 bg-teal-50 text-teal-800 dark:border-teal-700 dark:bg-teal-950/50 dark:text-teal-200' => $qRequired,
                             'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800' => ! $qRequired,
                         ])
                         aria-pressed="{{ $qRequired ? 'true' : 'false' }}"
                     >
-                        <flux:icon.check class="size-4 {{ $qRequired ? '' : 'opacity-30' }}" />
+                        <span @class([
+                            'flex size-4 items-center justify-center rounded border transition',
+                            'border-teal-600 bg-teal-600 text-white' => $qRequired,
+                            'border-zinc-300 bg-white text-transparent dark:border-zinc-600 dark:bg-zinc-800' => ! $qRequired,
+                        ])>
+                            <flux:icon.check class="size-3" />
+                        </span>
                         {{ __('Required') }}
                     </button>
                     <button
                         type="button"
                         wire:click="toggleFlag('qHidden')"
                         @class([
-                            'inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition',
-                            'border-zinc-800 bg-zinc-800 text-white dark:border-zinc-200 dark:bg-zinc-200 dark:text-zinc-900' => $qHidden,
+                            'inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition',
+                            'border-zinc-800 bg-zinc-100 text-zinc-900 dark:border-zinc-300 dark:bg-zinc-700 dark:text-white' => $qHidden,
                             'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800' => ! $qHidden,
                         ])
                         aria-pressed="{{ $qHidden ? 'true' : 'false' }}"
                     >
-                        <flux:icon.eye-slash class="size-4 {{ $qHidden ? '' : 'opacity-30' }}" />
+                        <span @class([
+                            'flex size-4 items-center justify-center rounded border transition',
+                            'border-zinc-800 bg-zinc-800 text-white dark:border-zinc-300 dark:bg-zinc-300 dark:text-zinc-900' => $qHidden,
+                            'border-zinc-300 bg-white text-transparent dark:border-zinc-600 dark:bg-zinc-800' => ! $qHidden,
+                        ])>
+                            <flux:icon.check class="size-3" />
+                        </span>
                         {{ __('Hidden') }}
                     </button>
                 </div>
@@ -1210,7 +1222,7 @@ new #[Layout('components.layouts.builder')] class extends Component {
                         <div class="flex items-center justify-between">
                             <flux:heading>{{ __('Options') }}</flux:heading>
                             @if ($selected->type->supportsCorrectAnswers())
-                                <flux:subheading class="text-xs">{{ __('Tick an option to mark it correct') }}</flux:subheading>
+                                <span class="text-xs font-medium text-zinc-400 dark:text-zinc-500">{{ __('Tick to mark correct') }}</span>
                             @endif
                         </div>
 
@@ -1218,39 +1230,68 @@ new #[Layout('components.layouts.builder')] class extends Component {
                             <flux:text class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</flux:text>
                         @enderror
 
+                        @php($roundCorrect = $selected->type !== \App\Enums\QuestionType::MultipleChoice)
                         <ul class="mt-3 space-y-2" x-sortable data-sort-method="sortOption">
                             @foreach ($selected->options as $option)
-                                <li class="flex items-center gap-2" wire:key="option-{{ $option->id }}" data-sort-id="{{ $option->id }}">
-                                    <span data-sort-handle class="text-zinc-300 dark:text-zinc-600" aria-hidden="true">
-                                        <flux:icon.bars-2 class="size-4" />
+                                <li
+                                    wire:key="option-{{ $option->id }}"
+                                    data-sort-id="{{ $option->id }}"
+                                    @class([
+                                        'flex items-center gap-3 rounded-xl border px-3 py-2.5 transition',
+                                        'border-teal-400 bg-teal-50 ring-1 ring-teal-200 dark:border-teal-700 dark:bg-teal-950/40 dark:ring-teal-900/60' => $option->is_correct,
+                                        'border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900' => ! $option->is_correct,
+                                    ])
+                                >
+                                    <span data-sort-handle class="grid shrink-0 cursor-grab grid-cols-2 gap-[3px] text-zinc-300 dark:text-zinc-600" aria-hidden="true">
+                                        @for ($d = 0; $d < 6; $d++)<span class="block size-1 rounded-full bg-current"></span>@endfor
                                     </span>
+
                                     @if ($selected->type->supportsCorrectAnswers())
-                                        <input
-                                            type="checkbox"
+                                        <button
+                                            type="button"
                                             wire:click="toggleCorrect({{ $option->id }})"
-                                            @checked($option->is_correct)
+                                            aria-pressed="{{ $option->is_correct ? 'true' : 'false' }}"
                                             aria-label="{{ __('Mark as correct answer') }}"
-                                            class="size-4 rounded border-zinc-300 text-green-600 focus:ring-green-500 dark:border-zinc-600 dark:bg-zinc-800"
-                                        />
+                                            @class([
+                                                'flex size-5 shrink-0 items-center justify-center border transition',
+                                                'rounded-full' => $roundCorrect,
+                                                'rounded-md' => ! $roundCorrect,
+                                                'border-teal-600 bg-teal-600 text-white' => $option->is_correct,
+                                                'border-zinc-300 bg-white text-transparent hover:border-teal-400 dark:border-zinc-600 dark:bg-zinc-800' => ! $option->is_correct,
+                                            ])
+                                        >
+                                            <flux:icon.check class="size-3" />
+                                        </button>
                                     @endif
 
                                     <input
                                         type="text"
                                         wire:model.blur="optionLabels.{{ $option->id }}"
                                         aria-label="{{ __('Option label') }}"
-                                        class="w-full flex-1 rounded-lg border-zinc-300 bg-white text-sm shadow-sm focus:border-teal-500 focus:ring-teal-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                                        placeholder="{{ __('Option label') }}"
+                                        class="min-w-0 flex-1 border-0 bg-transparent p-0 text-sm text-zinc-800 placeholder:text-zinc-400 focus:ring-0 dark:text-white"
                                     />
 
-                                    <flux:button variant="subtle" size="xs" icon="chevron-up" wire:click="moveOption({{ $option->id }}, -1)" :disabled="$loop->first" aria-label="{{ __('Move option up') }}" />
-                                    <flux:button variant="subtle" size="xs" icon="chevron-down" wire:click="moveOption({{ $option->id }}, 1)" :disabled="$loop->last" aria-label="{{ __('Move option down') }}" />
-                                    <flux:button variant="subtle" size="xs" icon="x-mark" wire:click="removeOption({{ $option->id }})" aria-label="{{ __('Remove option') }}" />
+                                    <button
+                                        type="button"
+                                        wire:click="removeOption({{ $option->id }})"
+                                        aria-label="{{ __('Remove option') }}"
+                                        class="shrink-0 text-zinc-400 transition hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400"
+                                    >
+                                        <flux:icon.x-mark class="size-4" />
+                                    </button>
                                 </li>
                             @endforeach
                         </ul>
 
-                        <flux:button variant="subtle" size="sm" icon="plus" wire:click="addOption" class="mt-3">
+                        <button
+                            type="button"
+                            wire:click="addOption"
+                            class="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-teal-600 transition hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300"
+                        >
+                            <flux:icon.plus class="size-4" />
                             {{ __('Add option') }}
-                        </flux:button>
+                        </button>
                     </div>
                 @endif
 
@@ -1298,8 +1339,8 @@ new #[Layout('components.layouts.builder')] class extends Component {
                         @endunless
 
                         <div class="mt-3 grid grid-cols-2 gap-4">
-                            <flux:input wire:model.live.debounce.500ms="qSettings.points" label="{{ __('Points for correct') }}" type="number" min="0" max="1000" />
-                            <flux:input wire:model.live.debounce.500ms="qSettings.negative_points" label="{{ __('Penalty for wrong') }}" type="number" min="0" max="1000" />
+                            <flux:input wire:model.live.debounce.500ms="qSettings.points" label="{{ __('Points correct') }}" type="number" min="0" max="1000" />
+                            <flux:input wire:model.live.debounce.500ms="qSettings.negative_points" label="{{ __('Penalty wrong') }}" type="number" min="0" max="1000" />
                         </div>
                     </div>
                 @endif
