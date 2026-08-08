@@ -152,6 +152,57 @@ class QuizDesignTest extends TestCase
             ->assertSee('--qf-primary:#ff5722', false);
     }
 
+    public function test_pro_custom_css_and_js_render_on_the_published_player(): void
+    {
+        $owner = User::factory()->create();
+        $workspace = Workspace::factory()->withMember($owner, WorkspaceRole::Owner)->create();
+        $owner->switchToWorkspace($workspace);
+
+        $quiz = Quiz::factory()->inWorkspace($workspace)->create([
+            'settings' => ['design' => array_merge(QuizDesign::defaults(), [
+                'custom_css' => '.qf-card{outline:3px solid magenta}',
+                'custom_js' => 'window.__quizforgeCustom = true;',
+            ])],
+        ]);
+        $page = QuizPage::factory()->for($quiz)->create();
+        $page->questions()->create([
+            'quiz_id' => $quiz->id, 'type' => QuestionType::ShortText,
+            'title' => 'Your name', 'position' => 0,
+        ]);
+        app(PublishQuiz::class)->handle($quiz, $owner);
+
+        // Pro plan: the custom code is emitted into the public player.
+        $this->mock(UsageLimits::class, fn ($mock) => $mock->shouldReceive('planKey')->andReturn('pro')
+            ->shouldReceive('canAcceptResponse')->andReturn(true));
+
+        Volt::test('play', ['slug' => $quiz->refresh()->slug])
+            ->assertSee('outline:3px solid magenta', false)
+            ->assertSee('window.__quizforgeCustom = true;', false);
+    }
+
+    public function test_free_plan_strips_custom_code_from_the_player(): void
+    {
+        $owner = User::factory()->create();
+        $workspace = Workspace::factory()->withMember($owner, WorkspaceRole::Owner)->create();
+        $owner->switchToWorkspace($workspace);
+
+        $quiz = Quiz::factory()->inWorkspace($workspace)->create([
+            'settings' => ['design' => array_merge(QuizDesign::defaults(), [
+                'custom_css' => '.qf-card{outline:3px solid magenta}',
+            ])],
+        ]);
+        $page = QuizPage::factory()->for($quiz)->create();
+        $page->questions()->create([
+            'quiz_id' => $quiz->id, 'type' => QuestionType::ShortText,
+            'title' => 'Your name', 'position' => 0,
+        ]);
+        app(PublishQuiz::class)->handle($quiz, $owner);
+
+        // Default (free) plan: custom code is never emitted.
+        Volt::test('play', ['slug' => $quiz->refresh()->slug])
+            ->assertDontSee('outline:3px solid magenta', false);
+    }
+
     public function test_the_design_defaults_compile_to_css_variables(): void
     {
         $vars = QuizDesign::cssVariables(QuizDesign::defaults());

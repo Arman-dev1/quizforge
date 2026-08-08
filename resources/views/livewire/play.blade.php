@@ -466,10 +466,7 @@ new #[Layout('components.layouts.player')] class extends Component {
     </main>
 
     @if ($designCustomJs !== '')
-        @script
-            <script>
-                {!! $designCustomJs !!}
-            </script>
-        @endscript
+        {{-- Pro custom JS: runs once on the public player's initial load. --}}
+        <script>{!! $designCustomJs !!}</script>
     @endif
 </div>
