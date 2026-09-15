@@ -243,6 +243,19 @@ new class extends Component
             if (this.d.input_style === 'underline') return { border: '0', borderBottom: '2px solid var(--qf-card-border)', borderRadius: '0', background: 'transparent' };
             return { border: '1px solid var(--qf-card-border)', background: 'transparent', borderRadius: 'var(--qf-radius)' };
         },
+        /*
+         | Mirrors QuizDesign::applyTheme. A theme has to carry its background
+         | with it: the quiz title sits outside the card, so picking Dark
+         | without moving the page colour left pale text on a pale page.
+         */
+        pickTheme(key) {
+            const t = this.cfg.themes[key];
+            if (! t) return;
+            this.d.theme = key;
+            this.d.background_color = t.page;
+            this.d.gradient_from = t.gradient_from;
+            this.d.gradient_to = t.gradient_to;
+        },
         reset() { this.d = JSON.parse(JSON.stringify(this.defaults)); $wire.resetDesign(); },
     }"
 >
@@ -272,7 +285,7 @@ new class extends Component
             <x-design.section :title="__('Theme')" :subtitle="__('A starting point for surfaces and text.')" icon="swatch">
                 <div class="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
                     @foreach ($catalog['themes'] as $key => $theme)
-                        <button type="button" x-on:click="d.theme = '{{ $key }}'"
+                        <button type="button" x-on:click="pickTheme('{{ $key }}')"
                             class="rounded-xl border p-3 text-left transition"
                             :class="d.theme === '{{ $key }}' ? 'border-teal-500 ring-1 ring-teal-200 dark:ring-teal-900' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600'">
                             <span class="flex gap-1">

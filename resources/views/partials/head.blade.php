@@ -9,4 +9,9 @@
 <link href="https://fonts.bunny.net/css?family=manrope:400,500,600,700,800|jetbrains-mono:400,500,600" rel="stylesheet" />
 
 @vite(['resources/css/app.css', 'resources/js/app.js'])
-@fluxAppearance
+
+{{-- The public player opts out: a respondent's OS dark mode must never
+     override the colours the quiz author chose. See the player layout. --}}
+@if ($appearance ?? true)
+    @fluxAppearance
+@endif

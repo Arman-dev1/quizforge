@@ -305,6 +305,41 @@ select:focus[data-flux-control] {
 }
 
 /*
+ | Card & typography
+ |--------------------------------------------------------------------------
+ | The card used to be `bg-white dark:bg-zinc-900`, which meant it followed
+ | the *visitor's* OS theme instead of the author's design — a respondent on
+ | a dark phone saw a dark card with dark text sitting on the author's light
+ | background. Colour comes from the --qf-* variables only, so the Dark theme
+ | in the Design tab and every custom palette render the same for everyone.
+ | Flux writes its own `text-zinc-*` on headings, hence the overrides.
+ */
+#qf-player .qf-card {
+    background: var(--qf-card);
+    border: 1px solid var(--qf-card-border);
+    color: var(--qf-text);
+}
+
+#qf-player :is(h1, h2, h3, h4, [data-flux-heading]) {
+    color: var(--qf-text);
+}
+
+#qf-player :is([data-flux-subheading], .qf-muted) {
+    color: var(--qf-muted);
+}
+
+/* Inset panel (the score box on the thank-you screen). */
+#qf-player .qf-inset {
+    background: color-mix(in srgb, var(--qf-text) 6%, transparent);
+    border-radius: var(--qf-radius);
+    color: var(--qf-text);
+}
+
+#qf-player .qf-prose {
+    color: var(--qf-text);
+}
+
+/*
  | Rich text
  |--------------------------------------------------------------------------
  | Shared by the <x-rich-text> editor and the read-only rendering of an

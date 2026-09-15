@@ -26,3 +26,4 @@ yarn-error.log
 # Local tooling and CI, kept out of the repo
 .claude/
 .github/workflows/
+marketing/

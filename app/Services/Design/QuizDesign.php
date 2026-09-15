@@ -58,15 +58,49 @@ class QuizDesign
         return self::merge(($quiz->settings ?? [])['design'] ?? []);
     }
 
-    /** Selectable themes: label + base surface/text tokens. */
+    /**
+     * Selectable themes: label + base surface/text tokens.
+     *
+     * `page` is the background the theme is meant to sit on. The quiz title
+     * and description render *outside* the card, straight onto that
+     * background, so a theme that only restyled the card left Dark with pale
+     * text on a pale page — an invisible heading. Choosing a theme in the
+     * editor therefore also moves the background (see `applyTheme`).
+     */
     public static function themes(): array
     {
         return [
-            'light' => ['label' => 'Light', 'text' => '#0f172a', 'muted' => '#64748b', 'card' => '#ffffff', 'card_border' => '#e5e7eb'],
-            'dark' => ['label' => 'Dark', 'text' => '#e5e7eb', 'muted' => '#94a3b8', 'card' => '#1e293b', 'card_border' => '#334155'],
-            'minimal' => ['label' => 'Minimal', 'text' => '#111827', 'muted' => '#6b7280', 'card' => '#ffffff', 'card_border' => '#f1f5f9'],
-            'modern' => ['label' => 'Modern', 'text' => '#0b1324', 'muted' => '#5b6472', 'card' => '#ffffff', 'card_border' => '#e2e8f0'],
+            'light' => ['label' => 'Light', 'text' => '#0f172a', 'muted' => '#64748b', 'card' => '#ffffff', 'card_border' => '#e5e7eb', 'page' => '#f5f7fa', 'gradient_from' => '#e0f2fe', 'gradient_to' => '#ede9fe'],
+            'dark' => ['label' => 'Dark', 'text' => '#e5e7eb', 'muted' => '#94a3b8', 'card' => '#1e293b', 'card_border' => '#334155', 'page' => '#0f172a', 'gradient_from' => '#0f172a', 'gradient_to' => '#1e1b4b'],
+            'minimal' => ['label' => 'Minimal', 'text' => '#111827', 'muted' => '#6b7280', 'card' => '#ffffff', 'card_border' => '#f1f5f9', 'page' => '#ffffff', 'gradient_from' => '#ffffff', 'gradient_to' => '#f8fafc'],
+            'modern' => ['label' => 'Modern', 'text' => '#0b1324', 'muted' => '#5b6472', 'card' => '#ffffff', 'card_border' => '#e2e8f0', 'page' => '#eef2f7', 'gradient_from' => '#dbeafe', 'gradient_to' => '#f3e8ff'],
         ];
+    }
+
+    /**
+     * Switch a design to a theme, carrying the background with it so the
+     * preset is coherent on its own. Only the surface colours move — the
+     * author's primary colour, fonts, radius and layout choices are theirs.
+     *
+     * @param  array<string, mixed>  $design
+     * @return array<string, mixed>
+     */
+    public static function applyTheme(array $design, string $theme): array
+    {
+        $design = self::merge($design);
+
+        if (! isset(self::themes()[$theme])) {
+            return $design;
+        }
+
+        $tokens = self::themes()[$theme];
+
+        $design['theme'] = $theme;
+        $design['background_color'] = $tokens['page'];
+        $design['gradient_from'] = $tokens['gradient_from'];
+        $design['gradient_to'] = $tokens['gradient_to'];
+
+        return $design;
     }
 
     /** Font catalog: label + a CSS stack that degrades to system fonts. */

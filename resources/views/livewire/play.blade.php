@@ -419,7 +419,7 @@ new #[Layout('components.layouts.player')] class extends Component {
 
     @unless ($closed || $completed)
         <div
-            class="h-1.5 w-full bg-black/10 dark:bg-white/10"
+            class="h-1.5 w-full bg-black/10"
             role="progressbar"
             aria-valuenow="{{ $progress }}"
             aria-valuemin="0"
@@ -433,13 +433,13 @@ new #[Layout('components.layouts.player')] class extends Component {
 
     <main class="mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 py-10 sm:px-6">
         @if ($closed)
-            <div class="qf-card m-auto rounded-2xl border border-zinc-200 bg-white p-10 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <div class="qf-card m-auto rounded-2xl p-10 text-center shadow-sm">
                 <flux:icon.lock-closed class="mx-auto size-10 text-zinc-400" />
                 <flux:heading size="lg" class="mt-4">{{ $quiz->name }}</flux:heading>
                 <flux:subheading class="mt-1">{{ __('This quiz is no longer accepting responses.') }}</flux:subheading>
             </div>
         @elseif ($completed)
-            <div class="qf-card m-auto w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-10 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <div class="qf-card m-auto w-full max-w-md rounded-2xl p-10 text-center shadow-sm">
                 <span class="mx-auto flex size-14 items-center justify-center rounded-full" style="background:var(--qf-primary)">
                     <flux:icon.check class="size-7 text-white" />
                 </span>
@@ -451,7 +451,7 @@ new #[Layout('components.layouts.player')] class extends Component {
                 @if ($outcome['description'] ?? null)
                     {{-- Sanitized on save by HtmlSanitizer; never render
                          author HTML that has not been through it. --}}
-                    <div class="qf-prose mt-3 text-left text-sm text-zinc-600 dark:text-zinc-300">
+                    <div class="qf-prose mt-3 text-left text-sm">
                         {!! $outcome['description'] !!}
                     </div>
                 @else
@@ -461,11 +461,11 @@ new #[Layout('components.layouts.player')] class extends Component {
                 @endif
 
                 @if ($outcome['show_score'] ?? false)
-                    <div class="mt-6 rounded-xl bg-zinc-50 p-5 dark:bg-zinc-800/60">
-                        <p class="text-4xl font-bold tracking-tight text-zinc-900 dark:text-white">
+                    <div class="qf-inset mt-6 p-5">
+                        <p class="text-4xl font-bold tracking-tight">
                             {{ $outcome['points'] }}<span class="text-xl font-medium text-zinc-400">/{{ $outcome['max'] }}</span>
                         </p>
-                        <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                        <p class="qf-muted mt-1 text-sm">
                             {{ __(':percentage% — :correct of :total correct', [
                                 'percentage' => $outcome['percentage'],
                                 'correct' => $outcome['correct'],
@@ -477,15 +477,15 @@ new #[Layout('components.layouts.player')] class extends Component {
                             @if (($outcome['passed'] ?? null) !== null)
                                 <span @class([
                                     'rounded-full px-3 py-1 text-xs font-semibold',
-                                    'bg-green-100 text-green-800 dark:bg-green-900/60 dark:text-green-300' => $outcome['passed'],
-                                    'bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-300' => ! $outcome['passed'],
+                                    'bg-green-100 text-green-800' => $outcome['passed'],
+                                    'bg-red-100 text-red-800' => ! $outcome['passed'],
                                 ])>
                                     {{ $outcome['passed'] ? __('Passed') : __('Not passed') }}
                                 </span>
                             @endif
 
                             @if ($outcome['grade'] ?? null)
-                                <span class="rounded-full bg-teal-100 px-3 py-1 text-xs font-semibold text-teal-800 dark:bg-teal-950/60 dark:text-teal-300">
+                                <span class="rounded-full bg-teal-100 px-3 py-1 text-xs font-semibold text-teal-800">
                                     {{ $outcome['grade'] }}
                                 </span>
                             @endif
@@ -516,7 +516,7 @@ new #[Layout('components.layouts.player')] class extends Component {
                 </div>
             @endif
 
-            <div class="qf-card rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8 dark:border-zinc-800 dark:bg-zinc-900">
+            <div class="qf-card rounded-2xl p-6 shadow-sm sm:p-8">
                 @if (($page['title'] ?? null) || ($page['description'] ?? null))
                     <div class="mb-8">
                         @if ($page['title'] ?? null)
