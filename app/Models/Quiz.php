@@ -42,6 +42,16 @@ class Quiz extends Model
         ];
     }
 
+    /**
+     * Route model binding resolves quizzes by slug, so admin URLs read
+     * /quizzes/customer-survey rather than /quizzes/47. Slugs are unique
+     * per workspace and the tenant scope still applies to the lookup.
+     */
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

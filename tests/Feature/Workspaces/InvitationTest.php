@@ -18,6 +18,10 @@ class InvitationTest extends TestCase
 
     protected function adminInWorkspace(): array
     {
+        // The free plan ships with a single seat; these tests are about
+        // invitation mechanics, not quota, so give them room.
+        config(['plans.free.limits.members' => 10]);
+
         $admin = User::factory()->create();
         $workspace = Workspace::factory()->withMember($admin, WorkspaceRole::Admin)->create();
         $admin->switchToWorkspace($workspace);

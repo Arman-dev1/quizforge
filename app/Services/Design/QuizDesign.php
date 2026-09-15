@@ -36,6 +36,7 @@ class QuizDesign
             'cover' => null,
             'custom_css' => '',
             'custom_js' => '',
+            'hide_branding' => false,
         ];
     }
 

@@ -119,7 +119,7 @@ class QuizDesignTest extends TestCase
         [$user, $quiz] = $this->editorWithQuiz();
         $this->actingAs($user);
 
-        $this->mock(UsageLimits::class, fn ($mock) => $mock->shouldReceive('planKey')->andReturn('pro'));
+        $this->mock(UsageLimits::class, fn ($mock) => $mock->shouldReceive('feature')->andReturn(true));
 
         $design = array_merge(QuizDesign::defaults(), ['custom_css' => '.qf-card { border: 0; }']);
 
@@ -172,7 +172,7 @@ class QuizDesignTest extends TestCase
         app(PublishQuiz::class)->handle($quiz, $owner);
 
         // Pro plan: the custom code is emitted into the public player.
-        $this->mock(UsageLimits::class, fn ($mock) => $mock->shouldReceive('planKey')->andReturn('pro')
+        $this->mock(UsageLimits::class, fn ($mock) => $mock->shouldReceive('feature')->andReturn(true)
             ->shouldReceive('canAcceptResponse')->andReturn(true));
 
         Volt::test('play', ['slug' => $quiz->refresh()->slug])

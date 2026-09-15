@@ -20,6 +20,14 @@ class QuizIntegrationsTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Integrations are a paid feature; enable it for the functionality tests.
+        config(['plans.free.flags.integrations' => true]);
+    }
+
     /** @return array{0: User, 1: Quiz, 2: Question} */
     protected function quizWithEmailQuestion(WorkspaceRole $role = WorkspaceRole::Editor): array
     {
@@ -181,6 +189,22 @@ class QuizIntegrationsTest extends TestCase
             && ($request['email_address'] ?? null) === 'lead@example.com');
 
         $this->assertNotNull(QuizIntegration::first()->last_synced_at);
+    }
+
+    public function test_integrations_are_locked_on_the_free_plan(): void
+    {
+        config(['plans.free.flags.integrations' => false]);
+        [$user, $quiz] = $this->quizWithEmailQuestion();
+
+        $this->actingAs($user)
+            ->get(route('quizzes.integrations', $quiz))
+            ->assertOk()
+            ->assertSee(__('Integrations are a paid feature'));
+
+        // The connect flow is blocked without the paid feature.
+        Volt::test('quizzes.integrations', ['quiz' => $quiz])
+            ->call('startSetup', 'mailchimp')
+            ->assertForbidden();
     }
 
     public function test_integrations_page_is_scoped_to_the_workspace(): void
