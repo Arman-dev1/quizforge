@@ -1,5 +1,6 @@
 @php
     $c = \App\Models\SiteSetting::current()->content();
+    $plans = \App\Models\Plan::forDisplay();
     $register = \Illuminate\Support\Facades\Route::has('register') ? route('register') : '#';
     $login = \Illuminate\Support\Facades\Route::has('login') ? route('login') : '#';
 @endphp
@@ -75,7 +76,7 @@
                             <span class="size-3 rounded-full bg-red-400"></span>
                             <span class="size-3 rounded-full bg-amber-400"></span>
                             <span class="size-3 rounded-full bg-green-400"></span>
-                            <span class="ml-3 text-xs text-zinc-400">app.quizforge.io/dashboard</span>
+                            <span class="ml-3 text-xs text-zinc-400">quizforge.devcorex.in/dashboard</span>
                         </div>
                         <div class="grid gap-4 p-5 text-left sm:grid-cols-3">
                             @foreach ([['Responses', '1,284', '↗ 12%', 'text-green-600'], ['Completion', '87%', '↗ 5%', 'text-green-600'], ['Leads', '342', '↗ 8%', 'text-amber-600']] as [$label, $value, $delta, $tone])
@@ -185,29 +186,30 @@
                         <h2 class="mt-3 text-4xl font-extrabold tracking-tight">{{ $c['pricing_title'] }}</h2>
                         <p class="mt-4 text-lg text-zinc-500">{{ $c['pricing_subtitle'] }}</p>
                     </div>
-                    <div class="mx-auto mt-12 grid max-w-4xl items-start gap-5 md:grid-cols-3">
-                        @foreach ($c['plans'] as $plan)
+                    <div class="mx-auto mt-12 grid max-w-3xl items-start gap-5 sm:grid-cols-2">
+                        @foreach ($plans as $plan)
+                            @php($popular = $plan['popular'] ?? false)
                             <div @class([
                                 'relative rounded-2xl bg-white p-7',
-                                'border border-zinc-200' => ! ($plan['popular'] ?? false),
-                                'border-2 border-teal-600 shadow-xl shadow-teal-600/20' => $plan['popular'] ?? false,
+                                'border border-zinc-200' => ! $popular,
+                                'border-2 border-teal-600 shadow-xl shadow-teal-600/20' => $popular,
                             ])>
-                                @if ($plan['popular'] ?? false)
+                                @if ($popular)
                                     <span class="absolute -top-3 left-7 rounded-full bg-teal-600 px-3 py-1 text-[11px] font-bold tracking-wide text-white">MOST POPULAR</span>
                                 @endif
                                 <h3 class="text-base font-bold">{{ $plan['name'] }}</h3>
                                 <p class="mt-1.5 text-xs text-zinc-400">{{ $plan['tagline'] }}</p>
                                 <div class="my-5 flex items-baseline gap-1">
-                                    <span class="text-4xl font-extrabold tracking-tight">{{ $plan['price'] }}</span>
-                                    <span class="text-sm text-zinc-400">{{ $plan['period'] ?? '/mo' }}</span>
+                                    <span class="text-4xl font-extrabold tracking-tight">${{ $plan['price'] }}</span>
+                                    <span class="text-sm text-zinc-400">/{{ $plan['period'] ?? 'mo' }}</span>
                                 </div>
                                 <a href="{{ $register }}" @class([
                                     'mb-6 block rounded-xl py-2.5 text-center text-sm font-bold transition',
-                                    'bg-teal-600 text-white shadow-md shadow-teal-600/40 hover:bg-teal-700' => $plan['popular'] ?? false,
-                                    'border border-zinc-200 text-zinc-900 hover:bg-zinc-50' => ! ($plan['popular'] ?? false),
-                                ])>{{ $plan['cta_label'] }}</a>
+                                    'bg-teal-600 text-white shadow-md shadow-teal-600/40 hover:bg-teal-700' => $popular,
+                                    'border border-zinc-200 text-zinc-900 hover:bg-zinc-50' => ! $popular,
+                                ])>{{ ($plan['key'] ?? '') === 'free' ? __('Get started') : __('Upgrade to :name', ['name' => $plan['name']]) }}</a>
                                 <ul class="flex flex-col gap-3 text-sm text-zinc-600">
-                                    @foreach ($plan['features'] as $line)
+                                    @foreach ($plan['features'] ?? [] as $line)
                                         <li class="flex gap-2.5"><flux:icon.check class="size-4 shrink-0 text-teal-600" />{{ $line }}</li>
                                     @endforeach
                                 </ul>

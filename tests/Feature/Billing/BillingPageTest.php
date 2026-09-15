@@ -31,8 +31,7 @@ class BillingPageTest extends TestCase
             ->assertSee(__(':plan plan', ['plan' => 'Free']))
             ->assertSee(__('Usage this month'))
             ->assertSee(__('Responses this month'))
-            ->assertSee('Pro')
-            ->assertSee('Scale');
+            ->assertSee('Pro');
     }
 
     public function test_non_owners_cannot_open_the_billing_page(): void
@@ -44,14 +43,16 @@ class BillingPageTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_the_unconfigured_notice_shows_without_paddle_keys(): void
+    public function test_the_unconfigured_notice_shows_without_a_payment_gateway(): void
     {
         $owner = $this->memberWithRole(WorkspaceRole::Owner);
+
+        config(['cashier.api_key' => null, 'cashier.client_side_token' => null]);
 
         $this->actingAs($owner)
             ->get(route('settings.billing'))
             ->assertOk()
-            ->assertSee('Checkout is not configured yet')
+            ->assertSee('Online checkout is not available yet', false)
             ->assertSee(__('Checkout unavailable'));
     }
 }

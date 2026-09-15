@@ -154,7 +154,7 @@ class PlanLimitsTest extends TestCase
         $usage = app(UsageLimits::class)->usage($workspace);
 
         $this->assertSame(2, $usage['members']['used']); // owner + pending invite
-        $this->assertSame(3, $usage['members']['limit']);
+        $this->assertSame(1, $usage['members']['limit']); // free plan = just you
         $this->assertSame(0, $usage['quizzes']['used']);
     }
 }

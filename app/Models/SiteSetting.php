@@ -116,23 +116,6 @@ class SiteSetting extends Model
             'pricing_eyebrow' => 'Pricing',
             'pricing_title' => 'Simple plans that scale with you',
             'pricing_subtitle' => 'Start free. Upgrade when your quizzes take off.',
-            'plans' => [
-                [
-                    'name' => 'Free', 'price' => '$0', 'period' => '/mo', 'tagline' => 'For trying things out',
-                    'cta_label' => 'Get started', 'popular' => false,
-                    'features' => ['3 quizzes', '100 responses / mo', '3 team members', 'Basic analytics'],
-                ],
-                [
-                    'name' => 'Pro', 'price' => '$29', 'period' => '/mo', 'tagline' => 'For growing teams',
-                    'cta_label' => 'Upgrade to Pro', 'popular' => true,
-                    'features' => ['20 quizzes', '1,000 responses / mo', '10 team members', 'Logic, branching & scoring', 'Lead capture & export'],
-                ],
-                [
-                    'name' => 'Scale', 'price' => '$79', 'period' => '/mo', 'tagline' => 'For serious volume',
-                    'cta_label' => 'Choose Scale', 'popular' => false,
-                    'features' => ['Unlimited quizzes', '10,000 responses / mo', 'Unlimited members', 'Advanced analytics & API', 'Priority support'],
-                ],
-            ],
 
             'faq_eyebrow' => 'FAQ',
             'faq_title' => 'Questions, answered',
@@ -141,7 +124,7 @@ class SiteSetting extends Model
                 ['question' => 'Can I capture leads even if someone doesn’t finish?', 'answer' => 'Yes. Partial responses are saved as soon as a contact field is filled, so you never lose a qualified lead to an abandoned quiz.'],
                 ['question' => 'Does QuizForge support scoring and grades?', 'answer' => 'Absolutely — set points per answer, penalties, pass marks, and custom grade bands. Respondents can see their result instantly.'],
                 ['question' => 'Can my team collaborate?', 'answer' => 'Invite members into a shared workspace with roles and permissions. Everyone edits the quizzes they’re allowed to, nothing more.'],
-                ['question' => 'Can I export my responses?', 'answer' => 'Export any quiz to CSV in one click, or connect the API on the Scale plan to push responses straight into your CRM.'],
+                ['question' => 'Can I export my responses?', 'answer' => 'Export any quiz to CSV in one click, or connect Mailchimp, Brevo, ConvertKit and more on Pro to push responses straight into your email tool.'],
             ],
 
             'cta_title' => 'Build your first quiz in minutes',

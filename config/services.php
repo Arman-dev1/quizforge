@@ -35,4 +35,14 @@ return [
         ],
     ],
 
+    /*
+     | Stripe. These are defaults only — the live values come from the
+     | payment settings managed at /super-admin (see PaymentServiceProvider).
+     */
+    'stripe' => [
+        'key' => env('STRIPE_KEY'),
+        'secret' => env('STRIPE_SECRET'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+    ],
+
 ];

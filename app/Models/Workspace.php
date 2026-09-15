@@ -48,6 +48,28 @@ class Workspace extends Model
         return $this->hasMany(WorkspaceInvitation::class);
     }
 
+    /**
+     * The workspace is the Paddle billable, but a workspace has no email of
+     * its own — Cashier needs one to create the customer. Bill the owner:
+     * they are the only role allowed to reach the billing page, and the
+     * subscription belongs to the workspace either way.
+     */
+    public function billingContact(): ?User
+    {
+        return $this->owners()->orderBy('users.id')->first()
+            ?? $this->members()->orderBy('users.id')->first();
+    }
+
+    public function paddleName(): ?string
+    {
+        return $this->billingContact()?->name ?? $this->name;
+    }
+
+    public function paddleEmail(): ?string
+    {
+        return $this->billingContact()?->email;
+    }
+
     public function hasMember(User $user): bool
     {
         return $this->members()->whereKey($user->id)->exists();
