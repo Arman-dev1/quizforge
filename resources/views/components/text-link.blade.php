@@ -1,5 +1,5 @@
 <a
-    {{ $attributes->merge(['class' => 'underline text-sm decoration-neutral-400 underline-offset-2 duration-300 ease-out hover:decoration-neutral-700 text-neutral-900 dark:text-neutral-200 dark:hover:decoration-neutral-100']) }}
+    {{ $attributes->merge(['class' => 'text-sm font-semibold text-teal-700 underline decoration-teal-700/30 underline-offset-2 transition hover:decoration-teal-700 dark:text-teal-400 dark:decoration-teal-400/30 dark:hover:decoration-teal-400']) }}
     wire:navigate
 >
     {{ $slot }}

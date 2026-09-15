@@ -40,8 +40,9 @@ new class extends Component {
 <section class="w-full">
     @include('partials.settings-heading')
 
-    <x-settings.layout heading="Update password" subheading="Ensure your account is using a long, random password to stay secure">
-        <form wire:submit="updatePassword" class="mt-6 space-y-6">
+    <x-settings.layout :heading="__('Password')" :subheading="__('Use a long, unique password — a password manager makes this easy.')">
+        <x-panel :title="__('Change password')" icon="lock-closed">
+        <form wire:submit="updatePassword" class="flex flex-col gap-5">
             <flux:input
                 wire:model="current_password"
                 id="update_password_current_passwordpassword"
@@ -71,14 +72,10 @@ new class extends Component {
             />
 
             <div class="flex items-center gap-4">
-                <div class="flex items-center justify-end">
-                    <flux:button variant="primary" type="submit" class="w-full">{{ __('Save') }}</flux:button>
-                </div>
-
-                <x-action-message class="me-3" on="password-updated">
-                    {{ __('Saved.') }}
-                </x-action-message>
+                <flux:button variant="primary" type="submit">{{ __('Update password') }}</flux:button>
+                <x-action-message on="password-updated">{{ __('Saved.') }}</x-action-message>
             </div>
         </form>
+        </x-panel>
     </x-settings.layout>
 </section>

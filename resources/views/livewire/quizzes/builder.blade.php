@@ -15,7 +15,7 @@ use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
-new #[Layout('components.layouts.builder')] class extends Component
+new #[Layout('components.layouts.app.shell')] class extends Component
 {
     public Quiz $quiz;
 
@@ -51,6 +51,12 @@ new #[Layout('components.layouts.builder')] class extends Component
 
     /** @var array<int, string> */
     public array $optionLabels = [];
+
+    /** @var array<int, string> option id => category, for category results */
+    public array $optionCategories = [];
+
+    /** Whether the category column is showing in the option editor. */
+    public bool $showCategories = false;
 
     public function boot(): void
     {
@@ -146,7 +152,20 @@ new #[Layout('components.layouts.builder')] class extends Component
 
     protected function syncOptionLabels(Question $question): void
     {
-        $this->optionLabels = $question->options()->pluck('label', 'id')->all();
+        $options = $question->options()->get(['id', 'label', 'settings']);
+
+        $this->optionLabels = $options->pluck('label', 'id')->all();
+        $this->optionCategories = $options
+            ->mapWithKeys(fn ($option) => [$option->id => (string) (($option->settings ?? [])['category'] ?? '')])
+            ->all();
+
+        // Keep the column open when this question already uses categories.
+        $this->showCategories = $this->showCategories || collect($this->optionCategories)->filter()->isNotEmpty();
+    }
+
+    public function toggleCategories(): void
+    {
+        $this->showCategories = ! $this->showCategories;
     }
 
     // ── Undo / redo ────────────────────────────────────────────
@@ -340,6 +359,29 @@ new #[Layout('components.layouts.builder')] class extends Component
             $question?->options()->findOrFail($optionId)
                 ->update(['label' => mb_substr((string) $value, 0, 500)]);
             $this->dispatch('builder-saved');
+
+            return;
+        }
+
+        // Option categories feed the category-matched result screens.
+        if (str_starts_with($name, 'optionCategories.')) {
+            $optionId = (int) Str::afterLast($name, '.');
+            $question = $this->selectedQuestion();
+            $option = $question?->options()->findOrFail($optionId);
+
+            if ($option) {
+                $settings = $option->settings ?? [];
+                $category = mb_substr(trim((string) $value), 0, 80);
+
+                if ($category === '') {
+                    unset($settings['category']);
+                } else {
+                    $settings['category'] = $category;
+                }
+
+                $option->update(['settings' => $settings ?: null]);
+                $this->dispatch('builder-saved');
+            }
 
             return;
         }
@@ -924,21 +966,33 @@ new #[Layout('components.layouts.builder')] class extends Component
 
     public function with(): array
     {
+        $pages = $this->quiz->pages()->with('questions.options')->get();
+
         return [
-            'pages' => $this->quiz->pages()->with('questions.options')->get(),
+            'pages' => $pages,
+            'questionTotal' => $pages->sum(fn ($page) => $page->questions->count()),
             'selected' => $this->selectedQuestion(),
             'typeGroups' => QuestionType::grouped(),
             'canUndo' => session($this->historyKey().'.undo', []) !== [],
             'canRedo' => session($this->historyKey().'.redo', []) !== [],
             'logicTriggers' => $this->logicTriggers(),
             'quizScored' => (bool) ($this->quiz->settings['scored'] ?? false),
+            // Categories already used anywhere in this quiz, so tagging an
+            // option is a pick rather than a retype.
+            'quizCategories' => $pages
+                ->flatMap(fn ($page) => $page->questions->flatMap(fn ($question) => $question->options->pluck('settings')))
+                ->map(fn ($settings) => trim((string) (($settings ?? [])['category'] ?? '')))
+                ->filter()
+                ->unique()
+                ->sort()
+                ->values(),
             'libraryQuestions' => $this->pickingForPageId ? LibraryQuestion::latest()->get() : collect(),
         ];
     }
 }; ?>
 
 <div
-    class="flex min-h-svh w-full flex-col lg:h-svh lg:flex-row"
+    class="flex h-full min-h-svh w-full flex-col lg:h-svh lg:flex-row"
     x-data
     x-on:keydown.window="
         if (($event.ctrlKey || $event.metaKey) && $event.key.toLowerCase() === 'z' && !['INPUT', 'TEXTAREA', 'SELECT'].includes($event.target.tagName)) {
@@ -947,17 +1001,35 @@ new #[Layout('components.layouts.builder')] class extends Component
         }
     "
 >
-    {{-- Structure sidebar --}}
-    <aside class="flex w-full shrink-0 flex-col border-b border-zinc-200 bg-white lg:h-svh lg:w-72 lg:border-r lg:border-b-0 dark:border-zinc-800 dark:bg-zinc-900">
-        <div class="border-b border-zinc-200 p-4 dark:border-zinc-800">
-            <a href="{{ route('dashboard') }}" wire:navigate class="mb-3 flex items-center">
-                <x-app-logo />
-            </a>
-            <a href="{{ route('quizzes.show', $quiz) }}" wire:navigate class="flex w-fit items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200">
-                <flux:icon.arrow-left class="size-3.5" />
-                {{ __('Back to overview') }}
-            </a>
-            <p class="mt-1.5 truncate text-sm font-extrabold tracking-tight text-zinc-900 dark:text-white">{{ $quiz->name }}</p>
+    {{-- Structure rail. Sits beside the app sidebar, so it's a little
+         narrower than when the builder owned the whole viewport. --}}
+    <aside class="flex w-full shrink-0 flex-col border-b border-zinc-200 bg-white lg:h-svh lg:w-64 lg:border-r lg:border-b-0 xl:w-72 dark:border-zinc-800 dark:bg-zinc-900">
+        {{-- Compact identity block: one row out, one row of context. The
+             builder is a focused tool — the rail should not spend four rows
+             on chrome before the first page. --}}
+        <div class="border-b border-zinc-200 p-3 dark:border-zinc-800">
+            <div class="flex items-center gap-2">
+                <a
+                    href="{{ route('quizzes.show', $quiz) }}"
+                    wire:navigate
+                    class="flex size-8 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white"
+                    title="{{ __('Back to overview') }}"
+                    aria-label="{{ __('Back to overview') }}"
+                >
+                    <flux:icon.arrow-left class="size-4" />
+                </a>
+
+                <div class="min-w-0 flex-1">
+                    <p class="truncate text-sm font-extrabold tracking-tight text-zinc-900 dark:text-white">{{ $quiz->name }}</p>
+                    <p class="truncate text-[11px] text-zinc-500 dark:text-zinc-400">
+                        {{ trans_choice(':count question|:count questions', $questionTotal, ['count' => $questionTotal]) }}
+                        &middot;
+                        {{ trans_choice(':count page|:count pages', $pages->count(), ['count' => $pages->count()]) }}
+                    </p>
+                </div>
+
+                <x-status-pill :status="$quiz->status" class="!px-2 !py-0.5 !text-[10px]" />
+            </div>
         </div>
 
         <div class="flex-1 overflow-y-auto p-3">
@@ -1048,18 +1120,36 @@ new #[Layout('components.layouts.builder')] class extends Component
 
     {{-- Editor panel --}}
     <div class="flex min-w-0 flex-1 flex-col lg:h-svh">
-        <header class="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-zinc-200 bg-white/90 px-4 py-2.5 backdrop-blur sm:px-6 dark:border-zinc-800 dark:bg-zinc-900/90">
-            <div class="flex items-center gap-1.5">
-                <flux:button variant="subtle" size="sm" icon="arrow-uturn-left" wire:click="undo" :disabled="! $canUndo" aria-label="{{ __('Undo') }}" title="{{ __('Undo (Ctrl+Z)') }}" />
-                <flux:button variant="subtle" size="sm" icon="arrow-uturn-right" wire:click="redo" :disabled="! $canRedo" aria-label="{{ __('Redo') }}" title="{{ __('Redo (Ctrl+Shift+Z)') }}" />
-                <x-action-message on="builder-saved" class="ml-1.5 font-mono text-xs text-zinc-400">{{ __('All changes saved') }}</x-action-message>
+        <header class="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-zinc-200 bg-white/90 px-4 py-2.5 backdrop-blur sm:px-6 dark:border-zinc-800 dark:bg-zinc-900/90">
+            <div class="flex min-w-0 items-center gap-1.5">
+                <flux:button variant="subtle" size="sm" icon="arrow-uturn-left" wire:click="undo" :disabled="! $canUndo" :aria-label="__('Undo')" title="{{ __('Undo (Ctrl+Z)') }}" />
+                <flux:button variant="subtle" size="sm" icon="arrow-uturn-right" wire:click="redo" :disabled="! $canRedo" :aria-label="__('Redo')" title="{{ __('Redo (Ctrl+Shift+Z)') }}" />
+
+                {{-- Autosave has to be legible without being loud: a dot plus
+                     a word, in the same spot every time. --}}
+                <span class="ml-2 flex items-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-500">
+                    <span wire:loading.remove wire:target="undo,redo" class="flex items-center gap-1.5">
+                        <span class="size-1.5 rounded-full bg-emerald-500"></span>
+                        <span class="max-sm:hidden">{{ __('Saved') }}</span>
+                    </span>
+                    <span wire:loading wire:target="undo,redo" class="flex items-center gap-1.5">
+                        <span class="size-1.5 animate-pulse rounded-full bg-amber-500"></span>
+                        <span class="max-sm:hidden">{{ __('Saving…') }}</span>
+                    </span>
+                </span>
             </div>
 
-            <div class="flex items-center gap-2">
-                <x-action-message on="quiz-published" class="text-xs font-semibold text-teal-600 dark:text-teal-400">{{ __('Published!') }}</x-action-message>
+            <div class="flex shrink-0 items-center gap-2">
+                <x-action-message on="quiz-published" class="text-xs font-semibold text-teal-600 dark:text-teal-400">{{ __('Published') }}</x-action-message>
+
+                <flux:button variant="subtle" size="sm" icon="swatch" :href="route('quizzes.design', $quiz)" wire:navigate class="max-lg:hidden">
+                    {{ __('Design') }}
+                </flux:button>
+
                 <flux:button variant="filled" size="sm" icon="eye" href="{{ route('quizzes.preview', $quiz) }}" target="_blank">
                     {{ __('Preview') }}
                 </flux:button>
+
                 <flux:button variant="primary" size="sm" icon="paper-airplane" wire:click="publish">
                     {{ $quiz->status === \App\Enums\QuizStatus::Published ? __('Republish') : __('Publish') }}
                 </flux:button>
@@ -1355,6 +1445,19 @@ new #[Layout('components.layouts.builder')] class extends Component
                                         class="min-w-0 flex-1 border-0 bg-transparent p-0 text-sm text-zinc-800 placeholder:text-zinc-400 focus:ring-0 dark:text-white"
                                     />
 
+                                    {{-- Category tag: what a category-matched
+                                         result screen counts to pick a winner. --}}
+                                    @if ($showCategories)
+                                        <input
+                                            type="text"
+                                            wire:model.blur="optionCategories.{{ $option->id }}"
+                                            aria-label="{{ __('Category for :label', ['label' => $option->label]) }}"
+                                            placeholder="{{ __('Category') }}"
+                                            list="qf-builder-categories"
+                                            class="w-28 shrink-0 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700 placeholder:text-zinc-400 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+                                        />
+                                    @endif
+
                                     <button
                                         type="button"
                                         wire:click="removeOption({{ $option->id }})"
@@ -1367,14 +1470,32 @@ new #[Layout('components.layouts.builder')] class extends Component
                             @endforeach
                         </ul>
 
-                        <button
-                            type="button"
-                            wire:click="addOption"
-                            class="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-teal-600 transition hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300"
-                        >
-                            <flux:icon.plus class="size-4" />
-                            {{ __('Add option') }}
-                        </button>
+                        <datalist id="qf-builder-categories">
+                            @foreach ($quizCategories as $category)
+                                <option value="{{ $category }}"></option>
+                            @endforeach
+                        </datalist>
+
+                        <div class="mt-3 flex flex-wrap items-center gap-4">
+                            <button
+                                type="button"
+                                wire:click="addOption"
+                                class="inline-flex items-center gap-1.5 text-sm font-semibold text-teal-600 transition hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300"
+                            >
+                                <flux:icon.plus class="size-4" />
+                                {{ __('Add option') }}
+                            </button>
+
+                            <button
+                                type="button"
+                                wire:click="toggleCategories"
+                                class="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-500 transition hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+                                title="{{ __('Tag options with a category to power category-matched result screens') }}"
+                            >
+                                <flux:icon.tag class="size-4" />
+                                {{ $showCategories ? __('Hide categories') : __('Add categories') }}
+                            </button>
+                        </div>
                     </div>
                 @endif
 

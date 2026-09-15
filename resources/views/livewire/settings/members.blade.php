@@ -162,6 +162,8 @@ new class extends Component {
         $workspace = $this->workspace();
         $actorRole = $this->actorRole();
 
+        $limits = app(\App\Services\Billing\UsageLimits::class);
+
         return [
             'workspace' => $workspace,
             'members' => $workspace->members()->orderBy('name')->get(),
@@ -169,6 +171,8 @@ new class extends Component {
             'actorRole' => $actorRole,
             'canManage' => $actorRole->canManageMembers(),
             'assignableRoles' => $actorRole->assignableRoles(),
+            'seatsUsed' => $limits->seatCount($workspace),
+            'seatLimit' => $limits->limit($workspace, 'members'),
         ];
     }
 }; ?>
@@ -176,59 +180,72 @@ new class extends Component {
 <section class="w-full">
     @include('partials.settings-heading')
 
-    <x-settings.layout heading="{{ __('Members') }}" :subheading="__('Manage who has access to :name', ['name' => $workspace->name])">
+    <x-settings.layout
+        :heading="__('Members')"
+        :subheading="__('Who has access to :name, and what they can do.', ['name' => $workspace->name])"
+        wide
+    >
         @if ($canManage)
-            <div class="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-                <flux:heading>{{ __('Invite a teammate') }}</flux:heading>
-                <flux:subheading>{{ __('They will get an email link to join this workspace.') }}</flux:subheading>
-
-                <form wire:submit="invite" class="mt-4 space-y-4">
+            <x-panel :title="__('Invite a teammate')" icon="user-plus" :description="__('They get an email link to join this workspace.')">
+                <form wire:submit="invite" class="flex flex-col gap-4">
                     <div class="flex flex-wrap items-end gap-3">
                         <div class="min-w-48 flex-1">
                             <flux:input
                                 wire:model="email"
-                                label="{{ __('Invite by email') }}"
+                                :label="__('Email address')"
                                 type="email"
                                 placeholder="teammate@company.com"
                             />
                         </div>
 
-                        <flux:select wire:model="role" label="{{ __('Role') }}" class="w-36">
+                        <flux:select wire:model="role" :label="__('Role')" class="w-40">
                             @foreach ($assignableRoles as $assignableRole)
                                 <option value="{{ $assignableRole->value }}">{{ $assignableRole->label() }}</option>
                             @endforeach
                         </flux:select>
 
-                        <flux:button variant="primary" type="submit">{{ __('Invite') }}</flux:button>
+                        <flux:button variant="primary" type="submit" icon="paper-airplane">{{ __('Send invite') }}</flux:button>
                     </div>
 
-                    <x-action-message on="member-invited">
-                        {{ __('Invitation sent.') }}
-                    </x-action-message>
+                    @if ($seatLimit !== null)
+                        <div class="flex items-center gap-3">
+                            <div class="h-1.5 w-32 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+                                <div @class([
+                                    'h-full rounded-full',
+                                    'bg-red-500' => $seatsUsed >= $seatLimit,
+                                    'bg-teal-600' => $seatsUsed < $seatLimit,
+                                ]) style="width: {{ min(100, (int) round($seatsUsed / max($seatLimit, 1) * 100)) }}%"></div>
+                            </div>
+                            <span class="text-xs text-zinc-500 dark:text-zinc-400">
+                                {{ __(':used of :limit seats used', ['used' => $seatsUsed, 'limit' => $seatLimit]) }}
+                                <span class="text-zinc-400 dark:text-zinc-500">{{ __('(members + pending invites)') }}</span>
+                            </span>
+                        </div>
+                    @endif
+
+                    <x-action-message on="member-invited">{{ __('Invitation sent.') }}</x-action-message>
                 </form>
-            </div>
+            </x-panel>
         @endif
 
         @error('members')
-            <flux:text class="mt-4 text-red-600 dark:text-red-400">{{ $message }}</flux:text>
+            <flux:text class="text-red-600 dark:text-red-400">{{ $message }}</flux:text>
         @enderror
 
-        <div class="mt-8">
-            <flux:heading>{{ __('Members') }} ({{ $members->count() }})</flux:heading>
-
-            <ul class="mt-3 divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:divide-zinc-800/70 dark:border-zinc-800 dark:bg-zinc-900">
+        <x-panel :title="__('Members')" :description="trans_choice(':count person|:count people', $members->count(), ['count' => $members->count()])" flush>
+            <ul class="divide-y divide-zinc-100 dark:divide-zinc-800">
                 @foreach ($members as $member)
                     @php($memberRole = \App\Enums\WorkspaceRole::from($member->pivot->role))
-                    <li class="flex items-center gap-3 px-4 py-3" wire:key="member-{{ $member->id }}">
-                        <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-sm font-bold text-teal-600 dark:bg-teal-950/60 dark:text-teal-400">
+                    <li class="flex flex-wrap items-center gap-3 px-5 py-3.5" wire:key="member-{{ $member->id }}">
+                        <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-teal-50 text-xs font-bold text-teal-700 dark:bg-teal-950/60 dark:text-teal-400">
                             {{ $member->initials() }}
                         </span>
 
                         <div class="min-w-0 flex-1 leading-tight">
-                            <p class="truncate text-sm font-medium text-zinc-800 dark:text-white">
+                            <p class="truncate text-sm font-bold text-zinc-900 dark:text-white">
                                 {{ $member->name }}
                                 @if ($member->id === auth()->id())
-                                    <span class="text-xs text-zinc-500">({{ __('you') }})</span>
+                                    <span class="font-normal text-zinc-400">{{ __('· you') }}</span>
                                 @endif
                             </p>
                             <p class="truncate text-xs text-zinc-500 dark:text-zinc-400">{{ $member->email }}</p>
@@ -237,8 +254,8 @@ new class extends Component {
                         @if ($canManage && $actorRole->canAssign($memberRole) && $member->id !== auth()->id())
                             <flux:select
                                 wire:change="updateRole({{ $member->id }}, $event.target.value)"
-                                class="w-32"
-                                aria-label="{{ __('Role for :name', ['name' => $member->name]) }}"
+                                class="w-36"
+                                :aria-label="__('Role for :name', ['name' => $member->name])"
                             >
                                 @foreach ($assignableRoles as $assignableRole)
                                     <option value="{{ $assignableRole->value }}" @selected($assignableRole === $memberRole)>
@@ -251,45 +268,59 @@ new class extends Component {
                                 :name="'remove-member-'.$member->id"
                                 action="removeMember({{ $member->id }})"
                                 :title="__('Remove :name?', ['name' => $member->name])"
-                                :description="__('They will lose access to this workspace immediately. You can re-invite them later.')"
+                                :description="__('They lose access to this workspace immediately. You can re-invite them later.')"
                                 :confirm="__('Remove member')"
                                 icon="user-minus"
                             >
                                 <x-slot:trigger>
-                                    <flux:button variant="subtle" size="sm" icon="trash" aria-label="{{ __('Remove :name', ['name' => $member->name]) }}" />
+                                    <flux:button variant="subtle" size="sm" icon="trash" :aria-label="__('Remove :name', ['name' => $member->name])" />
                                 </x-slot:trigger>
                             </x-confirm>
                         @else
-                            <span class="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">
+                            <span @class([
+                                'rounded-full px-2.5 py-1 text-xs font-bold',
+                                'bg-teal-50 text-teal-700 dark:bg-teal-950/60 dark:text-teal-400' => $memberRole === \App\Enums\WorkspaceRole::Owner,
+                                'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300' => $memberRole !== \App\Enums\WorkspaceRole::Owner,
+                            ])>
                                 {{ $memberRole->label() }}
                             </span>
                         @endif
                     </li>
                 @endforeach
             </ul>
-        </div>
+        </x-panel>
 
         @if ($invitations->isNotEmpty() && $canManage)
-            <div class="mt-8">
-                <flux:heading>{{ __('Pending invitations') }} ({{ $invitations->count() }})</flux:heading>
-
-                <ul class="mt-3 divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:divide-zinc-800/70 dark:border-zinc-800 dark:bg-zinc-900">
+            <x-panel
+                :title="__('Pending invitations')"
+                :description="trans_choice(':count invite awaiting a reply|:count invites awaiting a reply', $invitations->count(), ['count' => $invitations->count()])"
+                flush
+            >
+                <ul class="divide-y divide-zinc-100 dark:divide-zinc-800">
                     @foreach ($invitations as $invitation)
-                        <li class="flex items-center gap-3 px-4 py-3" wire:key="invitation-{{ $invitation->id }}">
+                        <li class="flex flex-wrap items-center gap-3 px-5 py-3.5" wire:key="invitation-{{ $invitation->id }}">
+                            <span @class([
+                                'flex size-9 shrink-0 items-center justify-center rounded-full',
+                                'bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400' => ! $invitation->isExpired(),
+                                'bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500' => $invitation->isExpired(),
+                            ])>
+                                <flux:icon.envelope class="size-4" />
+                            </span>
+
                             <div class="min-w-0 flex-1 leading-tight">
-                                <p class="truncate text-sm font-medium text-zinc-800 dark:text-white">{{ $invitation->email }}</p>
+                                <p class="truncate text-sm font-bold text-zinc-900 dark:text-white">{{ $invitation->email }}</p>
                                 <p class="text-xs text-zinc-500 dark:text-zinc-400">
                                     {{ $invitation->role->label() }}
                                     &middot;
                                     @if ($invitation->isExpired())
-                                        <span class="text-red-600 dark:text-red-400">{{ __('Expired') }}</span>
+                                        <span class="font-semibold text-red-600 dark:text-red-400">{{ __('Expired — resend to reopen it') }}</span>
                                     @else
                                         {{ __('Expires :date', ['date' => $invitation->expires_at->diffForHumans()]) }}
                                     @endif
                                 </p>
                             </div>
 
-                            <flux:button variant="subtle" size="sm" wire:click="resendInvitation({{ $invitation->id }})">
+                            <flux:button variant="filled" size="sm" wire:click="resendInvitation({{ $invitation->id }})">
                                 {{ __('Resend') }}
                             </flux:button>
 
@@ -302,17 +333,15 @@ new class extends Component {
                                 icon="x-mark"
                             >
                                 <x-slot:trigger>
-                                    <flux:button variant="subtle" size="sm" icon="trash" aria-label="{{ __('Revoke invitation for :email', ['email' => $invitation->email]) }}" />
+                                    <flux:button variant="subtle" size="sm" icon="trash" :aria-label="__('Revoke invitation for :email', ['email' => $invitation->email])" />
                                 </x-slot:trigger>
                             </x-confirm>
                         </li>
                     @endforeach
                 </ul>
+            </x-panel>
 
-                <x-action-message class="mt-2" on="invitation-resent">
-                    {{ __('Invitation resent.') }}
-                </x-action-message>
-            </div>
+            <x-action-message on="invitation-resent">{{ __('Invitation resent.') }}</x-action-message>
         @endif
     </x-settings.layout>
 </section>

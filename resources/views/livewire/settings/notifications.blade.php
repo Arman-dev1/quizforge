@@ -47,27 +47,45 @@ new class extends Component {
 <section class="w-full">
     @include('partials.settings-heading')
 
-    <x-settings.layout heading="{{ __('Notifications') }}" subheading="{{ __('Choose how you want to hear about activity') }}">
-        <form wire:submit="save" class="mt-6 space-y-6">
-            <div class="divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:divide-zinc-800/70 dark:border-zinc-800 dark:bg-zinc-900">
-                @foreach ($labels as $type => $label)
-                    <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-4" wire:key="pref-{{ $type }}">
-                        <div class="min-w-0">
-                            <p class="text-sm font-bold text-zinc-900 dark:text-white">{{ $label['title'] }}</p>
-                            <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ $label['text'] }}</p>
-                        </div>
+    <x-settings.layout
+        :heading="__('Notifications')"
+        :subheading="__('Choose what reaches you, and where.')"
+    >
+        <form wire:submit="save" class="flex flex-col gap-5">
+            <x-panel :title="__('Activity')" icon="bell" flush>
+                {{-- Column headings, so the two unlabelled checkbox columns
+                     aren't a guess on every row. --}}
+                <div class="hidden items-center gap-3 border-b border-zinc-200 bg-zinc-50/60 px-5 py-2.5 sm:flex dark:border-zinc-800 dark:bg-zinc-950/30">
+                    <span class="qf-eyebrow flex-1">{{ __('Notify me about') }}</span>
+                    <span class="qf-eyebrow w-16 text-center">{{ __('In-app') }}</span>
+                    <span class="qf-eyebrow w-16 text-center">{{ __('Email') }}</span>
+                </div>
 
-                        <div class="flex shrink-0 items-center gap-5">
-                            <flux:checkbox wire:model="preferences.{{ $type }}.database" label="{{ __('In-app') }}" />
-                            <flux:checkbox wire:model="preferences.{{ $type }}.mail" label="{{ __('Email') }}" />
+                <div class="divide-y divide-zinc-100 dark:divide-zinc-800">
+                    @foreach ($labels as $type => $label)
+                        <div class="flex flex-wrap items-center gap-3 px-5 py-4" wire:key="pref-{{ $type }}">
+                            <div class="min-w-0 flex-1">
+                                <p class="text-sm font-bold text-zinc-900 dark:text-white">{{ $label['title'] }}</p>
+                                <p class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{{ $label['text'] }}</p>
+                            </div>
+
+                            <div class="flex shrink-0 items-center gap-5 sm:gap-0">
+                                <div class="flex items-center gap-2 sm:w-16 sm:justify-center sm:gap-0">
+                                    <flux:checkbox wire:model="preferences.{{ $type }}.database" :aria-label="__('In-app notifications for :type', ['type' => $label['title']])" />
+                                    <span class="text-xs text-zinc-500 sm:hidden">{{ __('In-app') }}</span>
+                                </div>
+                                <div class="flex items-center gap-2 sm:w-16 sm:justify-center sm:gap-0">
+                                    <flux:checkbox wire:model="preferences.{{ $type }}.mail" :aria-label="__('Email notifications for :type', ['type' => $label['title']])" />
+                                    <span class="text-xs text-zinc-500 sm:hidden">{{ __('Email') }}</span>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                @endforeach
-            </div>
+                    @endforeach
+                </div>
+            </x-panel>
 
             <div class="flex items-center gap-4">
-                <flux:button variant="primary" type="submit">{{ __('Save') }}</flux:button>
-
+                <flux:button variant="primary" type="submit">{{ __('Save preferences') }}</flux:button>
                 <x-action-message on="preferences-saved">{{ __('Saved.') }}</x-action-message>
             </div>
         </form>

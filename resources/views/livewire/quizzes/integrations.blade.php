@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Quiz;
+use App\Services\Billing\UsageLimits;
 use App\Services\Integrations\IntegrationException;
 use App\Services\Integrations\IntegrationManager;
 use Livewire\Volt\Component;
@@ -37,6 +38,42 @@ new class extends Component {
         $this->authorize('update', $this->quiz);
     }
 
+    protected function featureEnabled(): bool
+    {
+        return app(UsageLimits::class)->feature($this->quiz->workspace, 'integrations');
+    }
+
+    /** Connecting/verifying/saving requires the paid Integrations feature. */
+    protected function guardFeature(): void
+    {
+        $this->guardManage();
+        abort_unless($this->featureEnabled(), 403);
+    }
+
+    /**
+     * Queued work that nothing has picked up.
+     *
+     * Syncing runs on the queue, so a stopped worker means responses stop
+     * reaching the connected tool with no error anywhere — the integration
+     * still reads "Connected". Surfacing the backlog turns a silent failure
+     * into a visible one. Only meaningful for the database driver; other
+     * drivers keep their backlog elsewhere.
+     */
+    protected function stalledJobCount(): int
+    {
+        if (config('queue.default') !== 'database') {
+            return 0;
+        }
+
+        try {
+            return \Illuminate\Support\Facades\DB::table('jobs')
+                ->where('available_at', '<=', now()->subMinutes(2)->getTimestamp())
+                ->count();
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+
     protected function resetSetup(): void
     {
         $this->reset(['setupProvider', 'step', 'credentials', 'resources', 'resourceId', 'resourceName', 'mapping', 'verifyError']);
@@ -45,7 +82,7 @@ new class extends Component {
 
     public function startSetup(string $provider): void
     {
-        $this->guardManage();
+        $this->guardFeature();
         abort_unless($this->manager()->exists($provider), 404);
 
         $this->resetSetup();
@@ -66,7 +103,7 @@ new class extends Component {
 
     public function verify(): void
     {
-        $this->guardManage();
+        $this->guardFeature();
         $meta = $this->manager()->meta($this->setupProvider);
 
         $rules = [];
@@ -93,7 +130,7 @@ new class extends Component {
 
     public function chooseResource(): void
     {
-        $this->guardManage();
+        $this->guardFeature();
         $this->validate(['resourceId' => ['required']], ['resourceId.required' => __('Select a destination to continue.')]);
 
         $this->resourceName = collect($this->resources)->firstWhere('id', $this->resourceId)['name'] ?? $this->resourceId;
@@ -111,7 +148,7 @@ new class extends Component {
 
     public function saveMapping(): void
     {
-        $this->guardManage();
+        $this->guardFeature();
         $targets = $this->manager()->driver($this->setupProvider)->targetFields();
 
         $rules = [];
@@ -170,6 +207,9 @@ new class extends Component {
 
         return [
             'canManage' => auth()->user()->can('update', $this->quiz),
+            'canUse' => $this->featureEnabled(),
+            'responseCount' => $this->quiz->responses()->count(),
+            'stalledJobs' => $this->stalledJobCount(),
             'providers' => $providers,
             'setupMeta' => $setupMeta,
             'setupFields' => $setupMeta ? ($setupMeta['fields'] ?? []) : [],
@@ -189,14 +229,40 @@ new class extends Component {
 @php($logo = fn (array $p) => '<span class="flex size-11 shrink-0 items-center justify-center rounded-xl text-lg font-extrabold" style="background:'.$p['color'].';color:'.$p['ink'].'">'.$p['initial'].'</span>')
 
 <section class="w-full">
-    <div class="min-w-0">
-        <a href="{{ route('quizzes.show', $quiz) }}" wire:navigate class="flex w-fit items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200">
-            <flux:icon.arrow-left class="size-3.5" />
-            {{ $quiz->name }}
-        </a>
-        <flux:heading size="xl" class="mt-1 tracking-tight">{{ __('Integrations') }}</flux:heading>
-        <flux:subheading>{{ __('Send this quiz’s leads straight into your email marketing tools.') }}</flux:subheading>
-    </div>
+    <x-page-header
+        :title="$quiz->name"
+        :back="route('quizzes.index')"
+        :back-label="__('Quizzes')"
+    >
+        <x-slot:meta>
+            <x-status-pill :status="$quiz->status" />
+            <span>{{ __('Send this quiz’s leads straight into your email marketing tools.') }}</span>
+        </x-slot:meta>
+
+        <x-slot:tabs>
+            <x-quiz-nav :quiz="$quiz" :response-count="$responseCount" />
+        </x-slot:tabs>
+    </x-page-header>
+
+    @if ($stalledJobs > 0)
+        {{-- Connected but not delivering is the worst failure mode here:
+             everything looks fine and nothing arrives. --}}
+        <div class="mt-6 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/60 dark:bg-amber-950/30">
+            <flux:icon.exclamation-triangle class="mt-0.5 size-4.5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div>
+                <p class="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                    {{ trans_choice(
+                        '{1}1 background task is waiting to run|[2,*]:count background tasks are waiting to run',
+                        $stalledJobs,
+                        ['count' => $stalledJobs],
+                    ) }}
+                </p>
+                <p class="mt-0.5 text-xs text-amber-800/90 dark:text-amber-300/90">
+                    {{ __('Responses sync to connected tools in the background. Until these run, new responses will not reach them — and neither will invitation or notification emails.') }}
+                </p>
+            </div>
+        </div>
+    @endif
 
     @if ($setupProvider)
         {{-- ─────────────── Setup flow ─────────────── --}}
@@ -317,6 +383,20 @@ new class extends Component {
                     </div>
                 @endif
             </div>
+        </div>
+    @elseif (! $canUse)
+        {{-- ─────────────── Paid-feature lock ─────────────── --}}
+        <div class="mt-6 flex flex-col items-center gap-4 rounded-2xl border border-dashed border-amber-300 bg-amber-50/60 p-10 text-center dark:border-amber-900 dark:bg-amber-950/30">
+            <span class="flex size-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400">
+                <flux:icon.lock-closed class="size-6" />
+            </span>
+            <div>
+                <flux:heading>{{ __('Integrations are a paid feature') }}</flux:heading>
+                <flux:subheading class="mx-auto max-w-md">{{ __('Upgrade your workspace to connect Mailchimp, Brevo and more, and sync every completed response automatically.') }}</flux:subheading>
+            </div>
+            @if ($canManage)
+                <flux:button :href="route('settings.billing')" wire:navigate variant="primary" icon="sparkles">{{ __('Upgrade plan') }}</flux:button>
+            @endif
         </div>
     @else
         {{-- ─────────────── Provider grid ─────────────── --}}

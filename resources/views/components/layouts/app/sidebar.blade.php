@@ -1,151 +1,208 @@
+@php
+    use App\Enums\WorkspaceRole;
+
+    $user = auth()->user();
+    $workspace = $user->currentWorkspace;
+    $role = $workspace ? $user->roleIn($workspace) : null;
+    $limits = app(\App\Services\Billing\UsageLimits::class);
+
+    $quizLimit = $workspace ? $limits->limit($workspace, 'quizzes') : null;
+    $responseLimit = $workspace ? $limits->limit($workspace, 'responses_per_month') : null;
+    $planName = $workspace ? ($limits->plan($workspace)['name'] ?? __('Free')) : __('Free');
+    $isOwner = $role === WorkspaceRole::Owner;
+@endphp
+
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
         @include('partials.head')
+
+        {{-- Loaded once here so it survives wire:navigate page swaps. --}}
+        <x-paddle-js />
     </head>
-    <body class="min-h-screen bg-white dark:bg-zinc-800">
+    {{-- Tinted ground so white panels read as raised content, not as the page itself. --}}
+    <body class="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+        <x-impersonation-banner />
         <flux:sidebar sticky stashable class="border-r border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-            <flux:sidebar.toggle class="lg:hidden" icon="x-mark" />
+            <div class="flex items-center justify-between">
+                <a href="{{ route('dashboard') }}" class="flex items-center gap-2.5" wire:navigate>
+                    <x-app-logo class="size-8" />
+                </a>
+                <flux:sidebar.toggle class="lg:hidden" icon="x-mark" />
+            </div>
 
-            <a href="{{ route('dashboard') }}" class="mr-5 flex items-center space-x-2" wire:navigate>
-                <x-app-logo class="size-8" href="#"></x-app-logo>
-            </a>
-
-            <div class="flex items-center gap-1">
+            {{-- Workspace context: which tenant am I in, and can I switch? --}}
+            <div class="mt-5 flex items-center gap-1.5">
                 <div class="min-w-0 flex-1">
                     <livewire:workspace-switcher />
                 </div>
                 <livewire:notification-bell key="bell-desktop" />
             </div>
 
-            <flux:navlist variant="outline">
-                <flux:navlist.group heading="{{ __('Platform') }}" class="grid">
-                    <flux:navlist.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>{{ __('Dashboard') }}</flux:navlist.item>
-                    <flux:navlist.item icon="puzzle-piece" :href="route('quizzes.index')" :current="request()->routeIs('quizzes.*')" wire:navigate>{{ __('Quizzes') }}</flux:navlist.item>
-                    <flux:navlist.item icon="user-plus" :href="route('leads.index')" :current="request()->routeIs('leads.*')" wire:navigate>{{ __('Leads') }}</flux:navlist.item>
+            {{-- The primary action lives above the nav, where every tool of
+                 this kind puts it. Nothing else in the rail competes with it. --}}
+            @can('create', App\Models\Quiz::class)
+                <flux:button
+                    :href="route('quizzes.create')"
+                    wire:navigate
+                    variant="primary"
+                    icon="plus"
+                    class="mt-3 w-full justify-center"
+                >
+                    {{ __('New quiz') }}
+                </flux:button>
+            @endcan
+
+            <flux:navlist variant="outline" class="mt-5">
+                <flux:navlist.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
+                    {{ __('Dashboard') }}
+                </flux:navlist.item>
+                <flux:navlist.item icon="puzzle-piece" :href="route('quizzes.index')" :current="request()->routeIs('quizzes.*')" wire:navigate>
+                    {{ __('Quizzes') }}
+                </flux:navlist.item>
+                <flux:navlist.item icon="user-plus" :href="route('leads.index')" :current="request()->routeIs('leads.*')" wire:navigate>
+                    {{ __('Leads') }}
+                </flux:navlist.item>
+            </flux:navlist>
+
+            <flux:navlist variant="outline" class="mt-1">
+                <flux:navlist.group :heading="__('Workspace')" class="grid">
+                    <flux:navlist.item icon="users" :href="route('settings.members')" :current="request()->routeIs('settings.members')" wire:navigate>
+                        {{ __('Members') }}
+                    </flux:navlist.item>
+                    <flux:navlist.item icon="cog-6-tooth" :href="route('settings.workspace')" :current="request()->routeIs('settings.workspace')" wire:navigate>
+                        {{ __('Settings') }}
+                    </flux:navlist.item>
+                    @if ($isOwner)
+                        <flux:navlist.item icon="credit-card" :href="route('settings.billing')" :current="request()->routeIs('settings.billing')" wire:navigate>
+                            {{ __('Billing') }}
+                        </flux:navlist.item>
+                    @endif
                 </flux:navlist.group>
             </flux:navlist>
 
             <flux:spacer />
 
-            {{-- Plan usage + upgrade (Clean Slate) --}}
-            @php
-                $usageWorkspace = auth()->user()->currentWorkspace;
-                $usageLimits = app(\App\Services\Billing\UsageLimits::class);
-                $usageQuizLimit = $usageWorkspace ? $usageLimits->limit($usageWorkspace, 'quizzes') : null;
-            @endphp
-            @if ($usageWorkspace && $usageQuizLimit !== null)
+            {{-- Usage: both metered limits, not just quizzes. Only shown when
+                 there is a ceiling to show — an unlimited plan gets nothing. --}}
+            @if ($workspace && ($quizLimit !== null || $responseLimit !== null))
                 @php
-                    $usageQuizUsed = $usageLimits->quizCount($usageWorkspace);
-                    $usagePct = min(100, (int) round($usageQuizUsed / max($usageQuizLimit, 1) * 100));
-                    $usageOver = $usageQuizUsed >= $usageQuizLimit;
+                    $meters = array_filter([
+                        $quizLimit !== null ? ['label' => __('Quizzes'), 'used' => $limits->quizCount($workspace), 'limit' => $quizLimit] : null,
+                        $responseLimit !== null ? ['label' => __('Responses'), 'used' => $limits->responsesThisMonth($workspace), 'limit' => $responseLimit] : null,
+                    ]);
+                    $anyOver = collect($meters)->contains(fn ($m) => $m['used'] >= $m['limit']);
                 @endphp
-                <div class="mb-2 rounded-xl border border-teal-100 bg-teal-50 p-3.5 dark:border-teal-900/60 dark:bg-teal-950/40">
-                    <div class="mb-2 flex items-center justify-between text-xs font-semibold text-zinc-700 dark:text-zinc-200">
-                        {{ __('Quizzes') }}
-                        <span class="{{ $usageOver ? 'text-red-600 dark:text-red-400' : 'text-teal-600 dark:text-teal-400' }}">{{ $usageQuizUsed }} / {{ $usageQuizLimit }}</span>
+
+                <div class="qf-well mb-3 p-3.5">
+                    <div class="mb-3 flex items-center justify-between">
+                        <span class="qf-eyebrow">{{ $planName }} {{ __('plan') }}</span>
+                        @if ($anyOver)
+                            <span class="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-600 dark:bg-red-950/60 dark:text-red-400">
+                                {{ __('Full') }}
+                            </span>
+                        @endif
                     </div>
-                    <div class="h-1.5 overflow-hidden rounded-full bg-teal-100 dark:bg-teal-900/60">
-                        <div class="h-full {{ $usageOver ? 'bg-red-500' : 'bg-teal-500' }}" style="width: {{ $usagePct }}%"></div>
+
+                    <div class="flex flex-col gap-2.5">
+                        @foreach ($meters as $meter)
+                            @php
+                                $pct = min(100, (int) round($meter['used'] / max($meter['limit'], 1) * 100));
+                                $over = $meter['used'] >= $meter['limit'];
+                            @endphp
+                            <div>
+                                <div class="mb-1 flex items-baseline justify-between text-[11px] font-semibold">
+                                    <span class="text-zinc-500 dark:text-zinc-400">{{ $meter['label'] }}</span>
+                                    <span @class(['qf-num', 'text-red-600 dark:text-red-400' => $over, 'text-zinc-500 dark:text-zinc-400' => ! $over])>
+                                        {{ number_format($meter['used']) }}/{{ number_format($meter['limit']) }}
+                                    </span>
+                                </div>
+                                <div class="h-1 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+                                    <div @class(['h-full rounded-full', 'bg-teal-600' => ! $over, 'bg-red-500' => $over]) style="width: {{ $pct }}%"></div>
+                                </div>
+                            </div>
+                        @endforeach
                     </div>
-                    <flux:button :href="route('settings.billing')" wire:navigate variant="primary" size="sm" class="mt-3 w-full">
-                        {{ __('Upgrade plan') }}
-                    </flux:button>
+
+                    @if ($isOwner)
+                        <flux:button :href="route('settings.billing')" wire:navigate size="sm" class="mt-3 w-full justify-center">
+                            {{ __('Upgrade') }}
+                        </flux:button>
+                    @endif
                 </div>
             @endif
 
-            <!-- Desktop User Menu -->
-            <flux:dropdown position="bottom" align="start">
+            <flux:dropdown position="top" align="start">
                 <flux:profile
-                    :name="auth()->user()->name"
-                    :initials="auth()->user()->initials()"
+                    :name="$user->name"
+                    :initials="$user->initials()"
                     icon-trailing="chevrons-up-down"
                 />
 
-                <flux:menu class="w-[220px]">
-                    <flux:menu.radio.group>
-                        <div class="p-0 text-sm font-normal">
-                            <div class="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                                <span class="relative flex h-8 w-8 shrink-0 overflow-hidden rounded-lg">
-                                    <span
-                                        class="flex h-full w-full items-center justify-center rounded-lg bg-neutral-200 text-black dark:bg-neutral-700 dark:text-white"
-                                    >
-                                        {{ auth()->user()->initials() }}
-                                    </span>
-                                </span>
-
-                                <div class="grid flex-1 text-left text-sm leading-tight">
-                                    <span class="truncate font-semibold">{{ auth()->user()->name }}</span>
-                                    <span class="truncate text-xs">{{ auth()->user()->email }}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </flux:menu.radio.group>
+                <flux:menu class="w-[240px]">
+                    <div class="px-2 py-1.5">
+                        <p class="truncate text-sm font-semibold text-zinc-900 dark:text-white">{{ $user->name }}</p>
+                        <p class="truncate text-xs text-zinc-500 dark:text-zinc-400">{{ $user->email }}</p>
+                    </div>
 
                     <flux:menu.separator />
 
-                    <flux:menu.radio.group>
-                        <flux:menu.item href="/settings/profile" icon="cog" wire:navigate>Settings</flux:menu.item>
-                    </flux:menu.radio.group>
+                    <flux:menu.item :href="route('settings.profile')" icon="user-circle" wire:navigate>{{ __('Profile') }}</flux:menu.item>
+                    <flux:menu.item :href="route('settings.notifications')" icon="bell" wire:navigate>{{ __('Notifications') }}</flux:menu.item>
+                    <flux:menu.item :href="route('settings.appearance')" icon="swatch" wire:navigate>{{ __('Appearance') }}</flux:menu.item>
+
+                    {{-- Only shown to staff who actually hold a platform
+                         session right now, not to any customer account. --}}
+                    @if (auth('super_admin')->check())
+                        <flux:menu.separator />
+                        <flux:menu.item href="/super-admin" icon="shield-check">{{ __('Platform panel') }}</flux:menu.item>
+                    @endif
 
                     <flux:menu.separator />
 
                     <form method="POST" action="{{ route('logout') }}" class="w-full">
                         @csrf
                         <flux:menu.item as="button" type="submit" icon="arrow-right-start-on-rectangle" class="w-full">
-                            {{ __('Log Out') }}
+                            {{ __('Log out') }}
                         </flux:menu.item>
                     </form>
                 </flux:menu>
             </flux:dropdown>
         </flux:sidebar>
 
-        <!-- Mobile User Menu -->
-        <flux:header class="lg:hidden">
+        {{-- Mobile bar: the rail is stashed, so the toggle, the bell and the
+             account menu have to live here. --}}
+        <flux:header class="border-b border-zinc-200 bg-white lg:hidden dark:border-zinc-800 dark:bg-zinc-900">
             <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
+
+            <a href="{{ route('dashboard') }}" class="ml-1 flex items-center" wire:navigate>
+                <x-app-logo class="size-7" />
+            </a>
 
             <flux:spacer />
 
             <livewire:notification-bell key="bell-mobile" />
 
-            <flux:dropdown position="top" align="end">
-                <flux:profile
-                    :initials="auth()->user()->initials()"
-                    icon-trailing="chevron-down"
-                />
+            <flux:dropdown position="bottom" align="end">
+                <flux:profile :initials="$user->initials()" icon-trailing="chevron-down" />
 
-                <flux:menu>
-                    <flux:menu.radio.group>
-                        <div class="p-0 text-sm font-normal">
-                            <div class="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                                <span class="relative flex h-8 w-8 shrink-0 overflow-hidden rounded-lg">
-                                    <span
-                                        class="flex h-full w-full items-center justify-center rounded-lg bg-neutral-200 text-black dark:bg-neutral-700 dark:text-white"
-                                    >
-                                        {{ auth()->user()->initials() }}
-                                    </span>
-                                </span>
-
-                                <div class="grid flex-1 text-left text-sm leading-tight">
-                                    <span class="truncate font-semibold">{{ auth()->user()->name }}</span>
-                                    <span class="truncate text-xs">{{ auth()->user()->email }}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </flux:menu.radio.group>
+                <flux:menu class="w-[240px]">
+                    <div class="px-2 py-1.5">
+                        <p class="truncate text-sm font-semibold text-zinc-900 dark:text-white">{{ $user->name }}</p>
+                        <p class="truncate text-xs text-zinc-500 dark:text-zinc-400">{{ $user->email }}</p>
+                    </div>
 
                     <flux:menu.separator />
 
-                    <flux:menu.radio.group>
-                        <flux:menu.item href="/settings/profile" icon="cog" wire:navigate>Settings</flux:menu.item>
-                    </flux:menu.radio.group>
+                    <flux:menu.item :href="route('settings.profile')" icon="user-circle" wire:navigate>{{ __('Profile') }}</flux:menu.item>
+                    <flux:menu.item :href="route('settings.appearance')" icon="swatch" wire:navigate>{{ __('Appearance') }}</flux:menu.item>
 
                     <flux:menu.separator />
 
                     <form method="POST" action="{{ route('logout') }}" class="w-full">
                         @csrf
                         <flux:menu.item as="button" type="submit" icon="arrow-right-start-on-rectangle" class="w-full">
-                            {{ __('Log Out') }}
+                            {{ __('Log out') }}
                         </flux:menu.item>
                     </form>
                 </flux:menu>

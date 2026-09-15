@@ -103,172 +103,189 @@ new class extends Component {
     }
 }; ?>
 
-<section class="mx-auto w-full max-w-4xl">
-    <div>
-        <flux:heading size="xl" class="tracking-tight">{{ __('Create a new quiz') }}</flux:heading>
-        <flux:subheading>{{ __('Start from a ready-made template or build from scratch.') }}</flux:subheading>
-    </div>
+<section class="mx-auto flex w-full max-w-5xl flex-col gap-6">
+    <x-page-header
+        :title="__('Create a new quiz')"
+        :description="__('Start from a ready-made template, or pick a type and build it yourself.')"
+        :back="route('quizzes.index')"
+        :back-label="__('Quizzes')"
+    >
+        @if (! $atLimit)
+            <x-slot:tabs>
+                @if ($hasTemplates)
+                    <button type="button" wire:click="$set('tab', 'templates')" @class(['qf-tab', 'qf-tab-active' => $tab === 'templates'])>
+                        <flux:icon.rectangle-stack class="size-4" />
+                        {{ __('Templates') }}
+                    </button>
+                @endif
+                <button type="button" wire:click="$set('tab', 'scratch')" @class(['qf-tab', 'qf-tab-active' => $tab === 'scratch' || ! $hasTemplates])>
+                    <flux:icon.sparkles class="size-4" />
+                    {{ __('From scratch') }}
+                </button>
+            </x-slot:tabs>
+        @endif
+    </x-page-header>
 
     @if ($atLimit)
-        <div class="mt-8 rounded-2xl border border-zinc-200 bg-white p-10 text-center dark:border-zinc-800 dark:bg-zinc-900">
-            <span class="mx-auto flex size-14 items-center justify-center rounded-2xl bg-teal-50 text-teal-600 dark:bg-teal-950/60 dark:text-teal-400">
-                <flux:icon.lock-closed class="size-7" />
-            </span>
-
-            <flux:heading size="lg" class="mt-5">{{ __('You have reached your plan limit') }}</flux:heading>
-            <flux:subheading class="mx-auto mt-1 max-w-md">
-                @if ($quizLimit !== null)
-                    {{ __('Your plan includes :limit quizzes and you are using :used. Upgrade for more, or archive a quiz to free up a slot.', ['limit' => $quizLimit, 'used' => $quizUsed]) }}
-                @else
-                    {{ __('Quiz creation is not available on your current plan.') }}
-                @endif
-            </flux:subheading>
-
-            @if ($quizLimit !== null)
-                <div class="mx-auto mt-5 flex max-w-xs items-center gap-3">
-                    <div class="h-2 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-                        <div class="h-full rounded-full bg-red-500" style="width: {{ min(100, (int) round($quizUsed / max($quizLimit, 1) * 100)) }}%"></div>
-                    </div>
-                    <span class="font-mono text-xs font-semibold text-zinc-500 dark:text-zinc-400">{{ $quizUsed }} / {{ $quizLimit }}</span>
-                </div>
-            @endif
-
-            <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
+        <div class="qf-surface">
+            <x-empty-state
+                icon="lock-closed"
+                :title="__('You have reached your plan limit')"
+                :description="$quizLimit !== null
+                    ? __('Your plan includes :limit quizzes and you are using :used. Upgrade for more, or archive a quiz to free up a slot.', ['limit' => $quizLimit, 'used' => $quizUsed])
+                    : __('Quiz creation is not available on your current plan.')"
+            >
                 @if ($canUpgrade)
                     <flux:button :href="route('settings.billing')" wire:navigate variant="primary" icon="sparkles">{{ __('Upgrade plan') }}</flux:button>
                 @endif
                 <flux:button :href="route('quizzes.index')" wire:navigate variant="filled">{{ __('Manage quizzes') }}</flux:button>
-            </div>
+            </x-empty-state>
+
+            @if ($quizLimit !== null)
+                <div class="mx-auto -mt-8 mb-10 flex max-w-xs items-center gap-3">
+                    <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+                        <div class="h-full rounded-full bg-red-500" style="width: {{ min(100, (int) round($quizUsed / max($quizLimit, 1) * 100)) }}%"></div>
+                    </div>
+                    <span class="qf-num text-xs font-semibold text-zinc-500 dark:text-zinc-400">{{ $quizUsed }} / {{ $quizLimit }}</span>
+                </div>
+            @endif
 
             @unless ($canUpgrade)
-                <p class="mt-4 text-xs text-zinc-500 dark:text-zinc-400">{{ __('Ask a workspace owner to upgrade the plan.') }}</p>
+                <p class="pb-8 text-center text-xs text-zinc-500 dark:text-zinc-400">{{ __('Ask a workspace owner to upgrade the plan.') }}</p>
             @endunless
         </div>
     @else
+        @if ($hasTemplates && $tab === 'templates')
+            <div class="flex flex-col gap-8">
+                @foreach ($templateGroups as $category => $templates)
+                    <div>
+                        <p class="qf-eyebrow mb-3">{{ $category }}</p>
 
-    @if ($hasTemplates)
-        <div class="mt-6 flex items-center gap-1 rounded-xl border border-zinc-200 p-1 dark:border-zinc-700" role="tablist">
-            @foreach (['templates' => __('Templates'), 'scratch' => __('From scratch')] as $key => $label)
-                <button
-                    type="button"
-                    wire:click="$set('tab', '{{ $key }}')"
-                    role="tab"
-                    aria-selected="{{ $tab === $key ? 'true' : 'false' }}"
-                    @class([
-                        'flex-1 rounded-lg px-4 py-2 text-sm font-medium transition',
-                        'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900' => $tab === $key,
-                        'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800' => $tab !== $key,
-                    ])
-                >
-                    {{ $label }}
-                </button>
-            @endforeach
-        </div>
-    @endif
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            @foreach ($templates as $template)
+                                <div class="qf-surface-interactive flex flex-col p-4" wire:key="template-{{ $template->id }}">
+                                    <div class="flex items-start gap-3">
+                                        <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-600 dark:bg-teal-950/60 dark:text-teal-400">
+                                            <flux:icon :icon="$template->type->icon()" class="size-4.5" />
+                                        </span>
 
-    @if ($hasTemplates && $tab === 'templates')
-        <div class="mt-8 space-y-8">
-            @foreach ($templateGroups as $category => $templates)
-                <div>
-                    <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ $category }}</p>
+                                        <div class="min-w-0 flex-1">
+                                            <p class="truncate text-sm font-bold text-zinc-900 dark:text-white">{{ $template->name }}</p>
+                                            <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                                                {{ $template->type->label() }}
+                                                &middot;
+                                                {{ trans_choice(':count question|:count questions', $template->questionCount(), ['count' => $template->questionCount()]) }}
+                                            </p>
+                                        </div>
 
-                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        @foreach ($templates as $template)
-                            <div class="flex flex-col rounded-2xl border border-zinc-200 bg-white p-4 transition hover:border-teal-300 hover:shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-teal-800" wire:key="template-{{ $template->id }}">
-                                <div class="flex items-start justify-between gap-2">
-                                    <p class="text-sm font-semibold text-zinc-900 dark:text-white">{{ $template->name }}</p>
-                                    @unless ($template->isGlobal())
-                                        <x-confirm
-                                            :name="'del-template-'.$template->id"
-                                            action="deleteTemplate({{ $template->id }})"
-                                            :title="__('Delete this template?')"
-                                            :description="__('This removes the saved template. Quizzes already created from it are not affected.')"
-                                            :confirm="__('Delete template')"
-                                            icon="trash"
-                                        >
-                                            <x-slot:trigger>
-                                                <flux:button variant="subtle" size="xs" icon="trash" aria-label="{{ __('Delete template') }}" />
-                                            </x-slot:trigger>
-                                        </x-confirm>
-                                    @endunless
-                                </div>
-
-                                @if ($template->description)
-                                    <p class="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">{{ $template->description }}</p>
-                                @endif
-
-                                <div class="mt-3 flex flex-1 items-end justify-between gap-2">
-                                    <span class="text-xs text-zinc-500 dark:text-zinc-400">
-                                        {{ $template->type->label() }}
-                                        &middot;
-                                        {{ trans_choice(':count question|:count questions', $template->questionCount(), ['count' => $template->questionCount()]) }}
                                         @unless ($template->isGlobal())
-                                            &middot; {{ __('Yours') }}
+                                            <x-confirm
+                                                :name="'del-template-'.$template->id"
+                                                action="deleteTemplate({{ $template->id }})"
+                                                :title="__('Delete this template?')"
+                                                :description="__('This removes the saved template. Quizzes already created from it are not affected.')"
+                                                :confirm="__('Delete template')"
+                                                icon="trash"
+                                            >
+                                                <x-slot:trigger>
+                                                    <flux:button variant="subtle" size="xs" icon="trash" aria-label="{{ __('Delete template') }}" />
+                                                </x-slot:trigger>
+                                            </x-confirm>
                                         @endunless
-                                    </span>
+                                    </div>
 
-                                    <flux:button variant="primary" size="sm" wire:click="useTemplate({{ $template->id }})">
-                                        {{ __('Use') }}
-                                    </flux:button>
+                                    @if ($template->description)
+                                        <p class="mt-3 line-clamp-2 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">{{ $template->description }}</p>
+                                    @endif
+
+                                    <div class="mt-4 flex flex-1 items-end justify-between gap-2">
+                                        @unless ($template->isGlobal())
+                                            <span class="rounded-md bg-zinc-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                                                {{ __('Yours') }}
+                                            </span>
+                                        @else
+                                            <span></span>
+                                        @endunless
+
+                                        <flux:button variant="primary" size="sm" wire:click="useTemplate({{ $template->id }})">
+                                            {{ __('Use template') }}
+                                        </flux:button>
+                                    </div>
                                 </div>
-                            </div>
-                        @endforeach
+                            @endforeach
+                        </div>
                     </div>
-                </div>
-            @endforeach
-        </div>
-    @endif
+                @endforeach
+            </div>
+        @endif
 
-    <form wire:submit="create" @class(['mt-8 space-y-8', 'hidden' => $hasTemplates && $tab === 'templates'])>
-        <div class="space-y-6">
-            @foreach ($groups as $category => $types)
-                <div>
-                    <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ $category }}</p>
-
-                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                        @foreach ($types as $quizType)
-                            <button
-                                type="button"
-                                wire:click="selectType('{{ $quizType->value }}')"
-                                wire:key="type-{{ $quizType->value }}"
-                                @class([
-                                    'flex items-start gap-3 rounded-xl border p-3 text-left transition',
-                                    'border-teal-500 bg-teal-50 ring-1 ring-teal-500 dark:bg-teal-950/40' => $selected === $quizType,
-                                    'border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:border-zinc-600 dark:hover:bg-zinc-800/60' => $selected !== $quizType,
-                                ])
-                                aria-pressed="{{ $selected === $quizType ? 'true' : 'false' }}"
-                            >
-                                <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-800 dark:ring-zinc-700">
-                                    <flux:icon :icon="$quizType->icon()" class="size-5 text-zinc-600 dark:text-zinc-300" />
-                                </span>
-                                <span class="min-w-0">
-                                    <span class="block text-sm font-medium text-zinc-800 dark:text-white">{{ $quizType->label() }}</span>
-                                    <span class="mt-0.5 block text-xs leading-snug text-zinc-500 dark:text-zinc-400">{{ $quizType->description() }}</span>
-                                </span>
-                            </button>
-                        @endforeach
-                    </div>
-                </div>
-            @endforeach
-
-            @error('type')
-                <flux:text class="text-red-600 dark:text-red-400">{{ __('Choose a quiz type to continue.') }}</flux:text>
-            @enderror
-        </div>
-
-        <div class="flex items-end gap-3 border-t border-zinc-200 pt-6 dark:border-zinc-700">
-            <div class="flex-1">
+        <form wire:submit="create" @class(['flex flex-col gap-6', 'hidden' => $hasTemplates && $tab === 'templates'])>
+            {{-- Name first: you know what you're making before you know
+                 which of fourteen types it is. --}}
+            <x-panel :title="__('Name it')" icon="pencil-square">
                 <flux:input
                     wire:model="name"
-                    label="{{ __('Quiz name') }}"
+                    :label="__('Quiz name')"
                     type="text"
-                    placeholder="{{ __('e.g. Customer Satisfaction Q3') }}"
+                    :placeholder="__('e.g. Customer Satisfaction Q3')"
+                    :description="__('You can rename it later — this also sets the public link.')"
                 />
+            </x-panel>
+
+            <div class="flex flex-col gap-6">
+                <div class="flex items-baseline justify-between gap-3">
+                    <h2 class="text-base font-bold tracking-tight text-zinc-900 dark:text-white">{{ __('Pick a type') }}</h2>
+                    @if ($selected)
+                        <span class="text-sm text-zinc-500 dark:text-zinc-400">{{ __('Selected: :type', ['type' => $selected->label()]) }}</span>
+                    @endif
+                </div>
+
+                @foreach ($groups as $category => $types)
+                    <div>
+                        <p class="qf-eyebrow mb-3">{{ $category }}</p>
+
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            @foreach ($types as $quizType)
+                                <button
+                                    type="button"
+                                    wire:click="selectType('{{ $quizType->value }}')"
+                                    wire:key="type-{{ $quizType->value }}"
+                                    @class([
+                                        'flex items-start gap-3 rounded-xl border p-3.5 text-left transition',
+                                        'border-teal-600 bg-teal-50/70 ring-1 ring-teal-600 dark:border-teal-500 dark:bg-teal-950/40 dark:ring-teal-500' => $selected === $quizType,
+                                        'border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700 dark:hover:bg-zinc-800/60' => $selected !== $quizType,
+                                    ])
+                                    aria-pressed="{{ $selected === $quizType ? 'true' : 'false' }}"
+                                >
+                                    <span @class([
+                                        'flex size-9 shrink-0 items-center justify-center rounded-lg',
+                                        'bg-teal-600 text-white' => $selected === $quizType,
+                                        'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400' => $selected !== $quizType,
+                                    ])>
+                                        <flux:icon :icon="$quizType->icon()" class="size-4.5" />
+                                    </span>
+
+                                    <span class="min-w-0">
+                                        <span class="block text-sm font-bold text-zinc-900 dark:text-white">{{ $quizType->label() }}</span>
+                                        <span class="mt-0.5 block text-xs leading-snug text-zinc-500 dark:text-zinc-400">{{ $quizType->description() }}</span>
+                                    </span>
+                                </button>
+                            @endforeach
+                        </div>
+                    </div>
+                @endforeach
+
+                @error('type')
+                    <flux:text class="text-red-600 dark:text-red-400">{{ __('Choose a quiz type to continue.') }}</flux:text>
+                @enderror
             </div>
 
-            <flux:button :href="route('quizzes.index')" wire:navigate variant="filled">{{ __('Cancel') }}</flux:button>
-            <flux:button variant="primary" type="submit">{{ __('Create quiz') }}</flux:button>
-        </div>
-    </form>
+            {{-- Sticky so "Create" is reachable without scrolling back past
+                 fourteen type cards. --}}
+            <div class="sticky bottom-0 -mx-4 mt-2 flex items-center justify-end gap-3 border-t border-zinc-200 bg-zinc-50/90 px-4 py-4 backdrop-blur sm:-mx-6 sm:px-6 dark:border-zinc-800 dark:bg-zinc-950/90">
+                <flux:button :href="route('quizzes.index')" wire:navigate variant="filled">{{ __('Cancel') }}</flux:button>
+                <flux:button variant="primary" type="submit" icon="plus">{{ __('Create quiz') }}</flux:button>
+            </div>
+        </form>
     @endif
 </section>

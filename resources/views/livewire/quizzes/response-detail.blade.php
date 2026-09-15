@@ -70,101 +70,125 @@ new class extends Component {
     }
 }; ?>
 
-<section class="mx-auto w-full max-w-3xl">
-    <div class="flex flex-wrap items-start justify-between gap-4">
-        <div class="min-w-0">
-            <a href="{{ route('quizzes.responses', $quiz) }}" wire:navigate class="flex items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200">
-                <flux:icon.arrow-left class="size-3.5" />
-                {{ __('All responses') }}
-            </a>
-
-            <div class="mt-1 flex items-center gap-3">
-                <flux:heading size="xl" class="tracking-tight">{{ __('Response #:id', ['id' => $response->id]) }}</flux:heading>
+<section class="mx-auto flex w-full max-w-3xl flex-col gap-5">
+    <x-page-header
+        :title="__('Response #:id', ['id' => $response->id])"
+        :back="route('quizzes.responses', $quiz)"
+        :back-label="__('All responses')"
+    >
+        <x-slot:meta>
+            <span @class([
+                'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold',
+                'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400' => $response->isCompleted(),
+                'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400' => ! $response->isCompleted(),
+            ])>
                 <span @class([
-                    'rounded-full border px-2.5 py-0.5 text-xs font-semibold',
-                    'border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950/60 dark:text-green-300' => $response->isCompleted(),
-                    'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-300' => ! $response->isCompleted(),
-                ])>
-                    {{ $response->isCompleted() ? __('Completed') : __('Partial') }}
-                </span>
-                @if ($response->trashed())
-                    <span class="rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 dark:border-red-900 dark:bg-red-950/60 dark:text-red-300">
-                        {{ __('Trashed') }}
-                    </span>
-                @endif
-            </div>
+                    'size-1.5 rounded-full',
+                    'bg-emerald-500' => $response->isCompleted(),
+                    'bg-amber-500' => ! $response->isCompleted(),
+                ])></span>
+                {{ $response->isCompleted() ? __('Completed') : __('Partial') }}
+            </span>
 
-            <flux:subheading class="mt-1">
-                {{ __('Started :started', ['started' => $response->started_at->format('M j, Y H:i')]) }}
-                @if ($response->completed_at)
-                    &middot; {{ __('took :duration', ['duration' => $response->started_at->shortAbsoluteDiffForHumans($response->completed_at)]) }}
-                @endif
-            </flux:subheading>
-        </div>
+            @if ($response->trashed())
+                <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700 dark:bg-red-950/60 dark:text-red-400">
+                    {{ __('In trash') }}
+                </span>
+            @endif
+
+            <span>{{ $quiz->name }}</span>
+            <span class="text-zinc-300 dark:text-zinc-700">&middot;</span>
+            <span>{{ $response->started_at->format('M j, Y H:i') }}</span>
+            @if ($response->completed_at)
+                <span class="text-zinc-300 dark:text-zinc-700">&middot;</span>
+                <span>{{ __('took :duration', ['duration' => $response->started_at->shortAbsoluteDiffForHumans($response->completed_at)]) }}</span>
+            @endif
+        </x-slot:meta>
 
         @if ($canManage && ! $response->trashed())
             <x-confirm
                 action="deleteResponse"
                 :title="__('Move to trash?')"
-                :description="__('This response moves to the trash. You can restore it later.')"
+                :description="__('This response moves to the trash. You can restore it later from the Trash filter.')"
                 :confirm="__('Move to trash')"
                 icon="trash"
             >
                 <x-slot:trigger>
-                    <flux:button variant="filled" icon="trash">{{ __('Delete') }}</flux:button>
+                    <flux:button variant="filled" icon="trash">{{ __('Move to trash') }}</flux:button>
                 </x-slot:trigger>
             </x-confirm>
         @endif
-    </div>
+    </x-page-header>
 
     @if ($scored)
-        <div class="mt-6 flex flex-wrap items-center gap-6 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+        <div class="qf-surface flex flex-wrap items-center gap-x-8 gap-y-4 p-5">
             <div>
-                <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ __('Score') }}</p>
-                <p class="mt-1 text-2xl font-semibold text-zinc-900 dark:text-white">
-                    {{ $response->score }}<span class="text-base text-zinc-400">/{{ $response->max_score }}</span>
-                    <span class="text-sm font-normal text-zinc-500">({{ $response->percentage }}%)</span>
+                <p class="qf-eyebrow">{{ __('Score') }}</p>
+                <p class="qf-num mt-1.5 text-3xl font-extrabold text-zinc-900 dark:text-white">
+                    {{ $response->score }}<span class="text-lg font-medium text-zinc-400">/{{ $response->max_score }}</span>
                 </p>
             </div>
 
-            @if ($response->passed !== null)
-                <span @class([
-                    'rounded-full px-3 py-1 text-xs font-semibold',
-                    'bg-green-100 text-green-800 dark:bg-green-900/60 dark:text-green-300' => $response->passed,
-                    'bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-300' => ! $response->passed,
-                ])>
-                    {{ $response->passed ? __('Passed') : __('Not passed') }}
-                </span>
-            @endif
+            <div>
+                <p class="qf-eyebrow">{{ __('Percentage') }}</p>
+                <p class="qf-num mt-1.5 text-3xl font-extrabold text-zinc-900 dark:text-white">{{ $response->percentage }}%</p>
+            </div>
 
-            @if ($response->grade)
-                <span class="rounded-full bg-teal-100 px-3 py-1 text-xs font-semibold text-teal-800 dark:bg-teal-950/60 dark:text-teal-300">
-                    {{ $response->grade }}
-                </span>
+            <div class="flex flex-wrap items-center gap-2">
+                @if ($response->passed !== null)
+                    <span @class([
+                        'rounded-full px-3 py-1 text-xs font-bold',
+                        'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400' => $response->passed,
+                        'bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-400' => ! $response->passed,
+                    ])>
+                        {{ $response->passed ? __('Passed') : __('Not passed') }}
+                    </span>
+                @endif
+
+                @if ($response->grade)
+                    <span class="rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-700 dark:bg-teal-950/60 dark:text-teal-400">
+                        {{ $response->grade }}
+                    </span>
+                @endif
+            </div>
+
+            @if ($response->max_score > 0)
+                <div class="w-full">
+                    <div class="h-2 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+                        <div @class([
+                            'h-full rounded-full',
+                            'bg-emerald-600' => $response->passed,
+                            'bg-red-500' => $response->passed === false,
+                            'bg-teal-600' => $response->passed === null,
+                        ]) style="width: {{ (int) min(100, max(0, $response->percentage ?? 0)) }}%"></div>
+                    </div>
+                </div>
             @endif
         </div>
     @endif
 
-    <div class="mt-4 divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:divide-zinc-800/70 dark:border-zinc-800 dark:bg-zinc-900">
-        @foreach ($rows as $row)
-            <div class="px-5 py-4">
-                <p class="font-mono text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ $row['title'] }}</p>
-                <p class="mt-1.5 whitespace-pre-line text-sm text-zinc-800 dark:text-zinc-200">
-                    {{ $row['value'] !== '' ? $row['value'] : '—' }}
-                </p>
-            </div>
-        @endforeach
-    </div>
+    <x-panel :title="__('Answers')" icon="chat-bubble-left-right" flush>
+        <dl class="divide-y divide-zinc-100 dark:divide-zinc-800">
+            @foreach ($rows as $row)
+                <div class="px-5 py-4">
+                    <dt class="qf-eyebrow">{{ $row['title'] }}</dt>
+                    <dd class="mt-1.5 whitespace-pre-line text-sm text-zinc-800 dark:text-zinc-200">
+                        {{ $row['value'] !== '' ? $row['value'] : '—' }}
+                    </dd>
+                </div>
+            @endforeach
+        </dl>
+    </x-panel>
 
     @if ($canManage)
-        <div class="mt-4 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+        <x-panel :title="__('Internal notes')" icon="pencil-square" :description="__('Only your team can see these.')">
             <flux:textarea
                 wire:model.blur="notes"
-                label="{{ __('Internal notes') }}"
                 rows="3"
-                placeholder="{{ __('Only your team can see these…') }}"
+                :placeholder="__('Add context for your team…')"
+                :aria-label="__('Internal notes')"
             />
-            <x-action-message on="notes-saved" class="mt-1 text-xs">{{ __('Saved.') }}</x-action-message>
-        </div>
+            <x-action-message on="notes-saved" class="mt-2 text-xs">{{ __('Saved.') }}</x-action-message>
+        </x-panel>
     @endif
 </section>

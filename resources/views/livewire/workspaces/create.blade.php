@@ -19,25 +19,30 @@ new class extends Component {
     }
 }; ?>
 
-<section class="mx-auto mt-10 w-full max-w-md space-y-6">
-    <div>
-        <flux:heading size="lg">{{ __('Create a workspace') }}</flux:heading>
-        <flux:subheading>{{ __('Workspaces keep quizzes, responses, and teammates together. You can create as many as you need.') }}</flux:subheading>
-    </div>
+<section class="mx-auto flex w-full max-w-lg flex-col gap-6">
+    <x-page-header
+        :title="__('Create a workspace')"
+        :description="__('Workspaces keep quizzes, responses and teammates together. You can have as many as you need.')"
+        :back="route('dashboard')"
+        :back-label="__('Dashboard')"
+    />
 
-    <form wire:submit="create" class="space-y-6">
-        <flux:input
-            wire:model="name"
-            label="{{ __('Workspace name') }}"
-            type="text"
-            required
-            autofocus
-            placeholder="{{ __('e.g. Acme Marketing') }}"
-        />
+    <x-panel :title="__('New workspace')" icon="building-office-2">
+        <form wire:submit="create" class="flex flex-col gap-5">
+            <flux:input
+                wire:model="name"
+                :label="__('Workspace name')"
+                type="text"
+                required
+                autofocus
+                :placeholder="__('e.g. Acme Marketing')"
+                :description="__('You become its owner. Invite teammates once it exists.')"
+            />
 
-        <div class="flex items-center justify-end gap-3">
-            <flux:button :href="route('dashboard')" wire:navigate variant="filled">{{ __('Cancel') }}</flux:button>
-            <flux:button variant="primary" type="submit">{{ __('Create workspace') }}</flux:button>
-        </div>
-    </form>
+            <div class="flex items-center justify-end gap-3">
+                <flux:button :href="route('dashboard')" wire:navigate variant="filled">{{ __('Cancel') }}</flux:button>
+                <flux:button variant="primary" type="submit" icon="plus">{{ __('Create workspace') }}</flux:button>
+            </div>
+        </form>
+    </x-panel>
 </section>

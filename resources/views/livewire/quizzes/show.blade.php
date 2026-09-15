@@ -63,12 +63,15 @@ new class extends Component {
         $this->quiz->unarchive();
     }
 
+    // Read-only summary of the result configuration. Editing lives on the
+    // Results tab (quizzes.results); this page only reports what is set.
     public bool $resultScored = false;
-    public bool $resultShowScore = true;
+
     public string $resultPassPercentage = '';
-    public string $resultGrades = '';
-    public string $resultMessage = '';
-    public string $resultRedirect = '';
+
+    public string $resultMode = 'simple';
+
+    public int $resultOutcomeCount = 0;
 
     public function loadResultSettings(): void
     {
@@ -76,53 +79,9 @@ new class extends Component {
         $results = $settings['results'] ?? [];
 
         $this->resultScored = (bool) ($settings['scored'] ?? false);
-        $this->resultShowScore = (bool) ($results['show_score'] ?? true);
         $this->resultPassPercentage = (string) ($results['pass_percentage'] ?? '');
-        $this->resultGrades = collect($results['grades'] ?? [])
-            ->map(fn (array $band) => $band['min'].':'.$band['label'])
-            ->implode("\n");
-        $this->resultMessage = (string) ($results['thank_you_message'] ?? '');
-        $this->resultRedirect = (string) ($results['redirect_url'] ?? '');
-    }
-
-    public function saveResults(): void
-    {
-        $this->authorize('update', $this->quiz);
-
-        $validated = $this->validate([
-            'resultPassPercentage' => ['nullable', 'numeric', 'between:0,100'],
-            'resultMessage' => ['nullable', 'string', 'max:2000'],
-            'resultRedirect' => ['nullable', 'url', 'max:500'],
-        ]);
-
-        $grades = collect(explode("\n", $this->resultGrades))
-            ->map(fn (string $line) => trim($line))
-            ->filter(fn (string $line) => $line !== '')
-            ->map(function (string $line) {
-                [$min, $label] = array_pad(explode(':', $line, 2), 2, '');
-
-                return is_numeric(trim($min)) && trim($label) !== ''
-                    ? ['min' => (float) trim($min), 'label' => mb_substr(trim($label), 0, 100)]
-                    : null;
-            })
-            ->filter()
-            ->values()
-            ->all();
-
-        $settings = $this->quiz->settings ?? [];
-        $settings['scored'] = $this->resultScored;
-        $settings['results'] = [
-            'show_score' => $this->resultShowScore,
-            'pass_percentage' => $this->resultPassPercentage === '' ? null : (float) $this->resultPassPercentage,
-            'grades' => $grades,
-            'thank_you_message' => trim($this->resultMessage) ?: null,
-            'redirect_url' => trim($this->resultRedirect) ?: null,
-        ];
-
-        $this->quiz->update(['settings' => $settings]);
-
-        $this->loadResultSettings();
-        $this->dispatch('results-saved');
+        $this->resultMode = in_array($results['mode'] ?? null, ['score', 'category'], true) ? $results['mode'] : 'simple';
+        $this->resultOutcomeCount = count(array_filter($results['outcomes'] ?? [], 'is_array'));
     }
 
     public function saveAsTemplate(SaveQuizAsTemplate $action): void
@@ -179,63 +138,117 @@ new class extends Component {
 
     public function with(): array
     {
+        $responseCount = $this->quiz->responses()->count();
+        $completedCount = $this->quiz->responses()->where('status', \App\Models\QuizResponse::STATUS_COMPLETED)->count();
+
         return [
             'canEdit' => Auth::user()->can('update', $this->quiz),
+            'questionCount' => $this->quiz->questions()->count(),
+            'pageCount' => max($this->quiz->pages()->count(), 1),
+            'responseCount' => $responseCount,
+            'completedCount' => $completedCount,
+            'completionRate' => $responseCount > 0 ? (int) round($completedCount / $responseCount * 100) : null,
+            'publicUrl' => route('quiz.play', $this->quiz->slug),
+            'latestVersion' => $this->quiz->latestVersion(),
+            'resultModeLabel' => match ($this->resultMode) {
+                'score' => __('Score-based results'),
+                'category' => __('Category-based results'),
+                default => __('One thank-you message'),
+            },
+            'resultModeIcon' => match ($this->resultMode) {
+                'score' => 'chart-bar',
+                'category' => 'tag',
+                default => 'chat-bubble-bottom-center-text',
+            },
+            'resultModeSummary' => match ($this->resultMode) {
+                'score' => trans_choice(
+                    '{0}No score bands set up yet|{1}:count band, matched on the score|[2,*]:count bands, matched on the score',
+                    $this->resultOutcomeCount,
+                    ['count' => $this->resultOutcomeCount],
+                ),
+                'category' => trans_choice(
+                    '{0}No categories set up yet|{1}:count result, matched on the category chosen most|[2,*]:count results, matched on the category chosen most',
+                    $this->resultOutcomeCount,
+                    ['count' => $this->resultOutcomeCount],
+                ),
+                default => __('Everyone who submits sees the same message.'),
+            },
         ];
     }
 }; ?>
 
-<section class="w-full">
-    <a href="{{ route('quizzes.index') }}" wire:navigate class="mb-4 flex w-fit items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200">
-        <flux:icon.arrow-left class="size-3.5" />
-        {{ __('Back to quizzes') }}
-    </a>
-
-    <div class="flex flex-wrap items-start justify-between gap-4">
-        <div class="min-w-0">
-            <div class="flex items-center gap-3">
-                <flux:heading size="xl" class="truncate tracking-tight">{{ $quiz->name }}</flux:heading>
-                <span class="rounded-full px-2.5 py-0.5 text-xs font-medium {{ $quiz->status->badgeClasses() }}">
-                    {{ $quiz->status->label() }}
-                </span>
-            </div>
-            <flux:subheading>
-                {{ $quiz->type->label() }}
-                &middot;
-                {{ __('Created :time', ['time' => $quiz->created_at->diffForHumans()]) }}
-            </flux:subheading>
-        </div>
-
-        <div class="flex flex-wrap items-center gap-2">
-            <flux:button href="{{ route('quizzes.preview', $quiz) }}" target="_blank" variant="filled" icon="eye">{{ __('Preview') }}</flux:button>
-            <flux:button :href="route('quizzes.analytics', $quiz)" wire:navigate variant="filled" icon="chart-bar">{{ __('Analytics') }}</flux:button>
-            <flux:button :href="route('quizzes.responses', $quiz)" wire:navigate variant="filled" icon="inbox">
-                {{ __('Responses') }}
-                @if (($responseCount = $quiz->responses()->count()) > 0)
-                    <span class="ml-1 rounded-full bg-zinc-200 px-1.5 text-xs font-semibold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">{{ $responseCount }}</span>
-                @endif
-            </flux:button>
-            <flux:button :href="route('quizzes.design', $quiz)" wire:navigate variant="filled" icon="swatch">{{ __('Design') }}</flux:button>
-            <flux:button :href="route('quizzes.integrations', $quiz)" wire:navigate variant="filled" icon="bolt">{{ __('Integrations') }}</flux:button>
-
-            @if ($canEdit)
-                <flux:button :href="route('quizzes.builder', $quiz)" wire:navigate variant="primary" icon="squares-plus">{{ __('Open builder') }}</flux:button>
-                <flux:button wire:click="duplicate" variant="filled" icon="document-duplicate">{{ __('Duplicate') }}</flux:button>
-                <flux:button wire:click="saveAsTemplate" variant="filled" icon="bookmark" title="{{ __('Save as a reusable template for your workspace') }}">{{ __('Save as template') }}</flux:button>
-                <x-action-message on="template-saved">{{ __('Template saved.') }}</x-action-message>
-
-                @if ($quiz->isArchived())
-                    <flux:button wire:click="unarchive" variant="filled" icon="arrow-uturn-left">{{ __('Restore to draft') }}</flux:button>
-                    <flux:button variant="danger" icon="trash" x-on:click="$dispatch('modal-show', { name: 'quiz-delete' })">{{ __('Delete') }}</flux:button>
-                @else
-                    <flux:button variant="filled" icon="archive-box" x-on:click="$dispatch('modal-show', { name: 'quiz-archive' })">{{ __('Archive') }}</flux:button>
-                @endif
+<section class="flex w-full flex-col gap-6">
+    <x-page-header
+        :title="$quiz->name"
+        :back="route('quizzes.index')"
+        :back-label="__('Quizzes')"
+    >
+        <x-slot:meta>
+            <x-status-pill :status="$quiz->status" />
+            <span>{{ $quiz->type->label() }}</span>
+            @if ($latestVersion)
+                <span class="text-zinc-300 dark:text-zinc-700">&middot;</span>
+                <span>{{ __('Version :v', ['v' => $latestVersion->version]) }}</span>
             @endif
-        </div>
-    </div>
+            <span class="text-zinc-300 dark:text-zinc-700">&middot;</span>
+            <span>{{ __('Created :time', ['time' => $quiz->created_at->diffForHumans()]) }}</span>
+        </x-slot:meta>
 
-    {{-- Confirmation modals: always rendered (never behind an @if) so the buttons
-         above, which appear after a state change, always have a live modal to open. --}}
+        {{-- Two visible actions and a menu. Everything else that used to sit
+             in this row is now a tab or a menu item. --}}
+        <flux:button href="{{ route('quizzes.preview', $quiz) }}" target="_blank" variant="filled" icon="eye">
+            {{ __('Preview') }}
+        </flux:button>
+
+        @if ($canEdit)
+            @if ($quiz->status === QuizStatus::Draft)
+                <flux:button wire:click="publish" variant="primary" icon="globe-alt">{{ __('Publish') }}</flux:button>
+            @elseif ($quiz->status === QuizStatus::Closed)
+                <flux:button wire:click="reopen" variant="primary" icon="lock-open">{{ __('Reopen') }}</flux:button>
+            @else
+                <flux:button :href="route('quizzes.builder', $quiz)" wire:navigate variant="primary" icon="squares-plus">
+                    {{ __('Edit questions') }}
+                </flux:button>
+            @endif
+
+            <flux:dropdown position="bottom" align="end">
+                <flux:button variant="filled" icon="ellipsis-horizontal" aria-label="{{ __('More actions') }}" />
+
+                <flux:menu>
+                    <flux:menu.item wire:click="duplicate" icon="document-duplicate">{{ __('Duplicate quiz') }}</flux:menu.item>
+                    <flux:menu.item wire:click="saveAsTemplate" icon="bookmark">{{ __('Save as template') }}</flux:menu.item>
+
+                    @if ($quiz->status === QuizStatus::Published)
+                        <flux:menu.separator />
+                        <flux:menu.item icon="lock-closed" x-on:click="$dispatch('modal-show', { name: 'quiz-close' })">
+                            {{ __('Close to new responses') }}
+                        </flux:menu.item>
+                    @endif
+
+                    <flux:menu.separator />
+
+                    @if ($quiz->isArchived())
+                        <flux:menu.item wire:click="unarchive" icon="arrow-uturn-left">{{ __('Restore to draft') }}</flux:menu.item>
+                        <flux:menu.item icon="trash" variant="danger" x-on:click="$dispatch('modal-show', { name: 'quiz-delete' })">
+                            {{ __('Delete quiz') }}
+                        </flux:menu.item>
+                    @else
+                        <flux:menu.item icon="archive-box" x-on:click="$dispatch('modal-show', { name: 'quiz-archive' })">
+                            {{ __('Archive quiz') }}
+                        </flux:menu.item>
+                    @endif
+                </flux:menu>
+            </flux:dropdown>
+        @endif
+
+        <x-slot:tabs>
+            <x-quiz-nav :quiz="$quiz" :response-count="$responseCount" />
+        </x-slot:tabs>
+    </x-page-header>
+
+    {{-- Confirmation modals: always rendered (never behind a status @if) so the
+         menu items above, which appear after a state change, always have a live
+         modal to open. --}}
     @if ($canEdit)
         <x-confirm
             name="quiz-archive"
@@ -266,179 +279,185 @@ new class extends Component {
     @endif
 
     @error('actions')
-        <flux:text class="mt-4 text-red-600 dark:text-red-400">{{ $message }}</flux:text>
+        <flux:text class="text-red-600 dark:text-red-400">{{ $message }}</flux:text>
     @enderror
 
-    @if ($canEdit)
-        <div class="mt-8 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-            <x-card-heading class="mb-5" icon="document-text" :title="__('Details')" />
-            <form wire:submit="updateDetails" class="space-y-6">
-                <div class="grid gap-6 lg:grid-cols-2 lg:items-start">
-                    <flux:input
-                        wire:model="name"
-                        label="{{ __('Name') }}"
-                        type="text"
-                        required
-                    />
-
-                    <flux:input
-                        value="{{ $quiz->slug }}"
-                        label="{{ __('Public link') }}"
-                        type="text"
-                        disabled
-                        description="{{ __('Your quiz will be available at /q/:slug once published.', ['slug' => $quiz->slug]) }}"
-                    />
-                </div>
-
-                <flux:textarea
-                    wire:model="description"
-                    label="{{ __('Description') }}"
-                    rows="3"
-                    placeholder="{{ __('Internal notes about this quiz (optional)') }}"
-                />
-
-                <div class="flex items-center gap-4">
-                    <flux:button variant="primary" type="submit">{{ __('Save changes') }}</flux:button>
-
-                    <x-action-message class="me-3" on="quiz-updated">
-                        {{ __('Saved.') }}
-                    </x-action-message>
-                </div>
-            </form>
+    @error('publish')
+        <div class="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900/60 dark:bg-red-950/30">
+            <flux:icon.exclamation-circle class="mt-0.5 size-4.5 shrink-0 text-red-600 dark:text-red-400" />
+            <p class="text-sm font-medium text-red-800 dark:text-red-300">{{ $message }}</p>
         </div>
-    @endif
+    @enderror
 
-    @if ($canEdit)
-        <div class="mt-4 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-            <div class="flex flex-wrap items-center justify-between gap-4">
-                <x-card-heading class="min-w-0" icon="share" :title="__('Sharing')">
-                    <flux:subheading>
-                        @if ($quiz->status === QuizStatus::Published)
-                            {{ __('Live on version :version. Edits stay private until you republish.', ['version' => $quiz->latestVersion()?->version]) }}
-                        @elseif ($quiz->status === QuizStatus::Closed)
-                            {{ __('Closed — the public link shows a "no longer accepting responses" notice.') }}
-                        @else
-                            {{ __('Publish to get a public link you can share anywhere.') }}
-                        @endif
-                    </flux:subheading>
-                </x-card-heading>
-
-                <div class="flex flex-wrap items-center gap-2">
-                    @if ($quiz->status === QuizStatus::Published)
-                        <flux:button wire:click="publish" variant="filled" icon="arrow-path">{{ __('Republish changes') }}</flux:button>
-                        <flux:button variant="filled" icon="lock-closed" x-on:click="$dispatch('modal-show', { name: 'quiz-close' })">{{ __('Close') }}</flux:button>
-                    @elseif ($quiz->status === QuizStatus::Closed)
-                        <flux:button wire:click="reopen" variant="primary" icon="lock-open">{{ __('Reopen') }}</flux:button>
-                        <flux:button wire:click="publish" variant="filled" icon="arrow-path">{{ __('Republish changes') }}</flux:button>
-                    @elseif ($quiz->status === QuizStatus::Draft)
-                        <flux:button wire:click="publish" variant="primary" icon="globe-alt">{{ __('Publish') }}</flux:button>
-                    @endif
-
-                    <x-action-message on="quiz-published">{{ __('Published.') }}</x-action-message>
+    {{-- Sharing leads the page. Once a quiz is live, getting the link is the
+         thing people come here to do; it used to be the third card down. --}}
+    @if (in_array($quiz->status, [QuizStatus::Published, QuizStatus::Closed], true))
+        <div class="qf-surface overflow-hidden">
+            <div class="flex flex-wrap items-center justify-between gap-4 p-5">
+                <div class="flex min-w-0 items-center gap-3">
+                    <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-600 dark:bg-teal-950/60 dark:text-teal-400">
+                        <flux:icon.share class="size-5" />
+                    </span>
+                    <div class="min-w-0">
+                        <h2 class="text-sm font-bold text-zinc-900 dark:text-white">{{ __('Public link') }}</h2>
+                        <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ $quiz->status->description() }}</p>
+                    </div>
                 </div>
-            </div>
 
-            @error('publish')
-                <flux:text class="mt-3 text-sm text-red-600 dark:text-red-400">{{ $message }}</flux:text>
-            @enderror
-
-            @if (in_array($quiz->status, [QuizStatus::Published, QuizStatus::Closed], true))
-                <div class="mt-4 flex items-center gap-2" x-data="{ copied: false }">
+                <div class="flex flex-1 flex-wrap items-center justify-end gap-2 sm:flex-nowrap" x-data="{ copied: false }">
                     <input
                         type="text"
                         readonly
-                        value="{{ route('quiz.play', $quiz->slug) }}"
-                        class="w-full flex-1 rounded-lg border-zinc-300 bg-zinc-50 text-sm text-zinc-600 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                        value="{{ $publicUrl }}"
+                        x-on:focus="$event.target.select()"
+                        class="qf-well min-w-0 flex-1 px-3 py-2 font-mono text-xs text-zinc-600 sm:min-w-[280px] dark:text-zinc-300"
                         aria-label="{{ __('Public quiz link') }}"
                     />
                     <flux:button
-                        variant="filled"
-                        icon="clipboard"
-                        x-on:click="navigator.clipboard.writeText('{{ route('quiz.play', $quiz->slug) }}'); copied = true; setTimeout(() => copied = false, 2000)"
+                        variant="primary"
+                        x-on:click="navigator.clipboard.writeText(@js($publicUrl)); copied = true; setTimeout(() => copied = false, 2000)"
                     >
-                        <span x-show="! copied">{{ __('Copy') }}</span>
-                        <span x-show="copied" x-cloak>{{ __('Copied!') }}</span>
+                        <span x-show="!copied" class="flex items-center gap-1.5"><flux:icon.clipboard class="size-4" />{{ __('Copy') }}</span>
+                        <span x-show="copied" x-cloak class="flex items-center gap-1.5"><flux:icon.check class="size-4" />{{ __('Copied') }}</span>
                     </flux:button>
+                    <flux:button href="{{ $publicUrl }}" target="_blank" variant="filled" icon="arrow-top-right-on-square" aria-label="{{ __('Open public link') }}" />
+                </div>
+            </div>
+
+            @if ($canEdit && $quiz->status === QuizStatus::Published)
+                <div class="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200 bg-zinc-50/60 px-5 py-3 dark:border-zinc-800 dark:bg-zinc-950/30">
+                    <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                        {{ __('Edits stay private until you republish. Live respondents keep seeing version :v.', ['v' => $latestVersion?->version]) }}
+                    </p>
+                    <div class="flex items-center gap-2">
+                        <x-action-message on="quiz-published">{{ __('Published.') }}</x-action-message>
+                        <flux:button wire:click="publish" size="sm" variant="filled" icon="arrow-path">{{ __('Republish changes') }}</flux:button>
+                    </div>
                 </div>
             @endif
         </div>
-    @endif
-
-    @if ($canEdit)
-        <div class="mt-4 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-            <x-card-heading icon="academic-cap" tone="amber" :title="__('Scoring & results')">
-                <flux:subheading>{{ __('Grade responses and control what respondents see when they finish.') }}</flux:subheading>
-            </x-card-heading>
-
-            <form wire:submit="saveResults" class="mt-5 space-y-5">
-                <div class="flex items-center gap-6">
-                    <flux:checkbox wire:model.live="resultScored" label="{{ __('Score this quiz') }}" />
-                    @if ($resultScored)
-                        <flux:checkbox wire:model="resultShowScore" label="{{ __('Show score to respondents') }}" />
-                    @endif
+    @elseif ($canEdit)
+        {{-- Draft: say what publishing does and make it one click. --}}
+        <div class="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-dashed border-teal-300 bg-teal-50/50 p-5 dark:border-teal-900 dark:bg-teal-950/20">
+            <div class="flex min-w-0 items-center gap-3">
+                <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-teal-700 dark:bg-teal-950/60 dark:text-teal-400">
+                    <flux:icon.globe-alt class="size-5" />
+                </span>
+                <div class="min-w-0">
+                    <h2 class="text-sm font-bold text-zinc-900 dark:text-white">{{ __('Not published yet') }}</h2>
+                    <p class="text-xs text-zinc-600 dark:text-zinc-400">
+                        {{ $questionCount === 0
+                            ? __('Add at least one question, then publish to get a shareable link.')
+                            : __('Publish to get a public link and start collecting responses.') }}
+                    </p>
                 </div>
+            </div>
 
-                @if ($resultScored)
-                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <flux:input
-                            wire:model="resultPassPercentage"
-                            label="{{ __('Pass mark (%)') }}"
-                            type="number"
-                            min="0"
-                            max="100"
-                            placeholder="{{ __('e.g. 60 — empty for none') }}"
-                        />
-
-                        <flux:textarea
-                            wire:model="resultGrades"
-                            label="{{ __('Grade bands (min%:Label)') }}"
-                            rows="3"
-                            placeholder="80:Excellent&#10;50:Good&#10;0:Keep practicing"
-                        />
-                    </div>
+            <div class="flex items-center gap-2">
+                <x-action-message on="quiz-published">{{ __('Published.') }}</x-action-message>
+                @if ($questionCount === 0)
+                    <flux:button :href="route('quizzes.builder', $quiz)" wire:navigate variant="primary" icon="squares-plus">
+                        {{ __('Add questions') }}
+                    </flux:button>
+                @else
+                    <flux:button wire:click="publish" variant="primary" icon="globe-alt">{{ __('Publish quiz') }}</flux:button>
                 @endif
-
-                <div class="grid gap-4 lg:grid-cols-2 lg:items-start">
-                    <flux:textarea
-                        wire:model="resultMessage"
-                        label="{{ __('Thank-you message') }}"
-                        rows="2"
-                        placeholder="{{ __('Shown after submitting (optional)') }}"
-                    />
-
-                    <flux:input
-                        wire:model="resultRedirect"
-                        label="{{ __('Redirect URL') }}"
-                        type="url"
-                        placeholder="https://example.com/thanks"
-                        description="{{ __('Respondents get a button to continue to this link (optional).') }}"
-                    />
-                </div>
-
-                <div class="flex items-center gap-4">
-                    <flux:button variant="primary" type="submit">{{ __('Save results') }}</flux:button>
-
-                    <x-action-message on="results-saved">{{ __('Saved.') }}</x-action-message>
-                </div>
-            </form>
+            </div>
         </div>
     @endif
 
-    <div class="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-        <x-card-heading class="min-w-0" icon="queue-list" tone="indigo" :title="__('Questions')">
-            <flux:subheading>
-                {{ trans_choice('{0}No questions yet — open the builder to add some.|{1}:count question across :pages :pageWord.|[2,*]:count questions across :pages :pageWord.', $quiz->questions()->count(), [
-                    'count' => $quiz->questions()->count(),
-                    'pages' => max($quiz->pages()->count(), 1),
-                    'pageWord' => trans_choice('page|pages', max($quiz->pages()->count(), 1)),
-                ]) }}
-            </flux:subheading>
-        </x-card-heading>
-
-        @if ($canEdit)
-            <flux:button :href="route('quizzes.builder', $quiz)" wire:navigate variant="primary" icon="squares-plus">
-                {{ __('Open builder') }}
-            </flux:button>
-        @endif
+    {{-- Shape of the quiz and how it is performing, in one row. --}}
+    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <x-stat
+            :label="__('Questions')"
+            :value="$questionCount"
+            icon="queue-list"
+            :hint="trans_choice('across :count page|across :count pages', $pageCount, ['count' => $pageCount])"
+            :href="$canEdit ? route('quizzes.builder', $quiz) : null"
+        />
+        <x-stat
+            :label="__('Responses')"
+            :value="number_format($responseCount)"
+            icon="inbox"
+            :hint="__(':n completed', ['n' => number_format($completedCount)])"
+            :href="route('quizzes.responses', $quiz)"
+        />
+        <x-stat
+            :label="__('Completion rate')"
+            :value="$completionRate === null ? '—' : $completionRate . '%'"
+            icon="check-circle"
+            :hint="$completionRate === null ? __('No responses yet') : __('of everyone who started')"
+            :href="route('quizzes.analytics', $quiz)"
+        />
+        <x-stat
+            :label="__('Scoring')"
+            :value="$resultScored ? __('On') : __('Off')"
+            icon="academic-cap"
+            :hint="$resultScored ? __('Points and grades applied') : __('Responses are not graded')"
+        />
     </div>
+
+    @if ($canEdit)
+        <div class="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:items-start">
+            <x-panel :title="__('Details')" icon="document-text">
+                <form wire:submit="updateDetails" class="flex flex-col gap-5">
+                    <flux:input wire:model="name" :label="__('Name')" type="text" required />
+
+                    <flux:input
+                        value="{{ $quiz->slug }}"
+                        :label="__('Public link')"
+                        type="text"
+                        disabled
+                        :description="__('Your quiz is available at /quiz/:slug once published.', ['slug' => $quiz->slug])"
+                    />
+
+                    <flux:textarea
+                        wire:model="description"
+                        :label="__('Description')"
+                        rows="3"
+                        :placeholder="__('Internal notes about this quiz (optional)')"
+                    />
+
+                    <div class="flex items-center gap-4">
+                        <flux:button variant="primary" type="submit">{{ __('Save changes') }}</flux:button>
+                        <x-action-message on="quiz-updated">{{ __('Saved.') }}</x-action-message>
+                    </div>
+                </form>
+            </x-panel>
+
+            {{-- Result screens have their own tab now; this points at it
+                 rather than duplicating the controls here. --}}
+            <x-panel :title="__('Result screens')" icon="sparkles" :description="__('What respondents see after they submit')">
+                <div class="flex flex-col gap-4">
+                    <div class="qf-well flex items-start gap-3 p-4">
+                        <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-600 dark:bg-teal-950/60 dark:text-teal-400">
+                            <flux:icon :icon="$resultModeIcon" class="size-4.5" />
+                        </span>
+                        <div class="min-w-0">
+                            <p class="text-sm font-bold text-zinc-900 dark:text-white">{{ $resultModeLabel }}</p>
+                            <p class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{{ $resultModeSummary }}</p>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-3">
+                        <flux:button :href="route('quizzes.results', $quiz)" wire:navigate variant="filled" icon="sparkles">
+                            {{ __('Edit result screens') }}
+                        </flux:button>
+
+                        @if ($resultScored)
+                            <span class="text-xs text-zinc-500 dark:text-zinc-400">
+                                {{ $resultPassPercentage !== ''
+                                    ? __('Scored · pass mark :n%', ['n' => $resultPassPercentage])
+                                    : __('Scored · no pass mark set') }}
+                            </span>
+                        @else
+                            <span class="text-xs text-zinc-500 dark:text-zinc-400">{{ __('Responses are not graded') }}</span>
+                        @endif
+                    </div>
+                </div>
+            </x-panel>
+        </div>
+    @endif
+
+    <x-action-message on="template-saved">{{ __('Template saved.') }}</x-action-message>
 </section>

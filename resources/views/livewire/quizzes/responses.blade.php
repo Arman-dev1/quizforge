@@ -70,128 +70,174 @@ new class extends Component {
             'scored' => (bool) ($this->quiz->settings['scored'] ?? false),
             'totalResponses' => $total,
             'completedResponses' => $completed,
+            'partialResponses' => $total - $completed,
+            'trashedResponses' => $this->quiz->responses()->onlyTrashed()->count(),
             'completionRate' => $total > 0 ? (int) round($completed / $total * 100) : 0,
             'avgScore' => $avgScore !== null ? round($avgScore, 1) : null,
         ];
     }
+
+    public function setStatus(string $status): void
+    {
+        $this->status = $status;
+        $this->resetPage();
+    }
 }; ?>
 
-<section class="w-full">
-    {{-- Header --}}
-    <div class="flex flex-wrap items-end justify-between gap-4">
-        <div class="min-w-0">
-            <a href="{{ route('quizzes.show', $quiz) }}" wire:navigate class="flex items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200">
-                <flux:icon.arrow-left class="size-3.5" />
-                {{ $quiz->name }}
-            </a>
-            <flux:heading size="xl" class="mt-1 tracking-tight">{{ __('Responses') }}</flux:heading>
-            <flux:subheading>
-                {{ trans_choice(':count completed|:count completed', $completedResponses, ['count' => $completedResponses]) }}
-                @if ($avgScore !== null)
-                    · {{ __('avg score :n%', ['n' => $avgScore]) }}
-                @endif
-            </flux:subheading>
-        </div>
+<section class="flex w-full flex-col gap-6">
+    <x-page-header
+        :title="$quiz->name"
+        :back="route('quizzes.index')"
+        :back-label="__('Quizzes')"
+    >
+        <x-slot:meta>
+            <x-status-pill :status="$quiz->status" />
+            <span>{{ $quiz->type->label() }}</span>
+        </x-slot:meta>
 
-        <div class="flex items-center gap-2.5">
-            <flux:select wire:model.live="status" class="w-40" aria-label="{{ __('Filter by status') }}">
-                <option value="all">{{ __('All responses') }}</option>
-                <option value="completed">{{ __('Completed') }}</option>
-                <option value="partial">{{ __('Partial') }}</option>
-                <option value="trashed">{{ __('Trashed') }}</option>
-            </flux:select>
+        <flux:button href="{{ route('quizzes.responses.export', $quiz) }}" variant="filled" icon="arrow-down-tray">
+            {{ __('Export CSV') }}
+        </flux:button>
 
-            <flux:button href="{{ route('quizzes.responses.export', $quiz) }}" variant="primary" icon="arrow-down-tray">
-                {{ __('Export CSV') }}
-            </flux:button>
-        </div>
+        <x-slot:tabs>
+            <x-quiz-nav :quiz="$quiz" :response-count="$totalResponses" />
+        </x-slot:tabs>
+    </x-page-header>
+
+    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <x-stat :label="__('Total responses')" :value="number_format($totalResponses)" icon="inbox" />
+        <x-stat :label="__('Completed')" :value="number_format($completedResponses)" icon="check-circle" :hint="__(':n% completion rate', ['n' => $completionRate])" />
+        <x-stat :label="__('Partial')" :value="number_format($partialResponses)" icon="clock" :hint="__('Started but not finished')" />
+        <x-stat
+            :label="__('Average score')"
+            :value="$avgScore === null ? '—' : $avgScore . '%'"
+            icon="academic-cap"
+            :hint="$scored ? __('Across scored responses') : __('Scoring is off for this quiz')"
+        />
     </div>
 
-    {{-- Stat tiles --}}
-    <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div class="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <div class="text-xs font-semibold text-zinc-500 dark:text-zinc-400">{{ __('Total responses') }}</div>
-            <div class="mt-2 text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-white">{{ number_format($totalResponses) }}</div>
-        </div>
-        <div class="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <div class="text-xs font-semibold text-zinc-500 dark:text-zinc-400">{{ __('Completion rate') }}</div>
-            <div class="mt-2 text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-white">{{ $completionRate }}<span class="text-base text-zinc-400">%</span></div>
-        </div>
-        <div class="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <div class="text-xs font-semibold text-zinc-500 dark:text-zinc-400">{{ __('Avg. score') }}</div>
-            <div class="mt-2 text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-white">
-                @if ($avgScore !== null){{ $avgScore }}<span class="text-base text-zinc-400">%</span>@else<span class="text-zinc-400">—</span>@endif
-            </div>
+    {{-- Filter as tabs with counts: the counts are the reason you'd switch. --}}
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="qf-scroll-x -mb-px flex items-center gap-5 border-b border-zinc-200 dark:border-zinc-800">
+            @php
+                $filters = [
+                    ['key' => 'all', 'label' => __('All'), 'count' => $totalResponses],
+                    ['key' => 'completed', 'label' => __('Completed'), 'count' => $completedResponses],
+                    ['key' => 'partial', 'label' => __('Partial'), 'count' => $partialResponses],
+                    ['key' => 'trashed', 'label' => __('Trash'), 'count' => $trashedResponses],
+                ];
+            @endphp
+
+            @foreach ($filters as $filter)
+                <button
+                    type="button"
+                    wire:click="setStatus('{{ $filter['key'] }}')"
+                    @class(['qf-tab', 'qf-tab-active' => $status === $filter['key']])
+                >
+                    {{ $filter['label'] }}
+                    @if ($filter['count'] > 0)
+                        <span class="qf-num rounded-full bg-zinc-100 px-1.5 text-[11px] font-bold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">{{ $filter['count'] }}</span>
+                    @endif
+                </button>
+            @endforeach
         </div>
     </div>
 
     @if ($responses->isEmpty())
-        <div class="mt-16 flex flex-col items-center justify-center text-center">
-            <flux:icon.inbox class="size-10 text-zinc-400" />
-            <flux:heading class="mt-4">
-                {{ $status === 'all' ? __('No responses yet') : __('No responses match this filter') }}
-            </flux:heading>
-            <flux:subheading class="max-w-sm">
-                {{ $status === 'all' ? __('Share your quiz link and responses will land here in real time.') : __('Try a different filter.') }}
-            </flux:subheading>
+        <div class="qf-surface">
+            @if ($status === 'all')
+                <x-empty-state
+                    icon="inbox"
+                    :title="__('No responses yet')"
+                    :description="__('Share your quiz link and responses will land here as people answer — including partial ones.')"
+                >
+                    @if ($quiz->status === App\Enums\QuizStatus::Published)
+                        <flux:button :href="route('quizzes.show', $quiz)" wire:navigate variant="primary" icon="share">
+                            {{ __('Get the share link') }}
+                        </flux:button>
+                    @else
+                        <flux:button :href="route('quizzes.show', $quiz)" wire:navigate variant="primary" icon="globe-alt">
+                            {{ __('Publish this quiz') }}
+                        </flux:button>
+                    @endif
+                </x-empty-state>
+            @else
+                <x-empty-state
+                    icon="funnel"
+                    :title="__('Nothing here')"
+                    :description="__('No responses match this filter yet.')"
+                >
+                    <flux:button wire:click="setStatus('all')" variant="filled">{{ __('Show all responses') }}</flux:button>
+                </x-empty-state>
+            @endif
         </div>
     @else
-        <div class="mt-4 overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800">
+        <div class="qf-surface overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full min-w-160 text-sm">
-                    <thead class="border-b border-zinc-200 bg-zinc-50 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-400">
+                    <thead class="border-b border-zinc-200 bg-zinc-50/60 text-left dark:border-zinc-800 dark:bg-zinc-950/30">
                         <tr>
-                            <th class="px-5 py-3">{{ __('Respondent') }}</th>
-                            <th class="px-5 py-3">{{ __('Status') }}</th>
+                            <th class="qf-eyebrow px-5 py-3 font-semibold">{{ __('Respondent') }}</th>
+                            <th class="qf-eyebrow px-5 py-3 font-semibold">{{ __('Status') }}</th>
                             @if ($scored)
-                                <th class="px-5 py-3">{{ __('Score') }}</th>
+                                <th class="qf-eyebrow px-5 py-3 font-semibold">{{ __('Score') }}</th>
                             @endif
-                            <th class="px-5 py-3">{{ __('Started') }}</th>
-                            <th class="px-5 py-3">{{ __('Duration') }}</th>
+                            <th class="qf-eyebrow px-5 py-3 font-semibold">{{ __('Started') }}</th>
+                            <th class="qf-eyebrow px-5 py-3 font-semibold">{{ __('Duration') }}</th>
                             <th class="px-5 py-3"><span class="sr-only">{{ __('Actions') }}</span></th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800/70">
+                    <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
                         @foreach ($responses as $response)
-                            <tr wire:key="response-{{ $response->id }}" class="bg-white dark:bg-zinc-900">
+                            <tr wire:key="response-{{ $response->id }}" class="transition hover:bg-zinc-50 dark:hover:bg-zinc-800/40">
                                 <td class="px-5 py-3.5">
-                                    <a href="{{ route('quizzes.responses.show', [$quiz, $response->id]) }}" wire:navigate class="font-bold text-zinc-900 hover:underline dark:text-white">
+                                    <a href="{{ route('quizzes.responses.show', [$quiz, $response->id]) }}" wire:navigate class="font-bold text-zinc-900 hover:text-teal-700 dark:text-white dark:hover:text-teal-400">
                                         {{ $emails[$response->id] ?? __('Response #:id', ['id' => $response->id]) }}
                                     </a>
                                 </td>
+
                                 <td class="px-5 py-3.5">
                                     <span @class([
-                                        'rounded-full border px-2.5 py-0.5 text-xs font-semibold',
-                                        'border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950/60 dark:text-green-300' => $response->isCompleted(),
-                                        'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-300' => ! $response->isCompleted(),
+                                        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold',
+                                        'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400' => $response->isCompleted(),
+                                        'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400' => ! $response->isCompleted(),
                                     ])>
+                                        <span @class([
+                                            'size-1.5 rounded-full',
+                                            'bg-emerald-500' => $response->isCompleted(),
+                                            'bg-amber-500' => ! $response->isCompleted(),
+                                        ])></span>
                                         {{ $response->isCompleted() ? __('Completed') : __('Partial') }}
                                     </span>
                                 </td>
+
                                 @if ($scored)
                                     <td class="px-5 py-3.5">
                                         @if ($response->score !== null)
                                             <div class="flex items-center gap-2.5">
-                                                <span class="font-mono text-sm font-bold text-zinc-900 dark:text-white">{{ $response->score }}/{{ $response->max_score }}</span>
+                                                <span class="qf-num w-14 text-sm font-bold text-zinc-900 dark:text-white">{{ $response->score }}/{{ $response->max_score }}</span>
                                                 <span class="h-1.5 w-16 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
                                                     <span @class([
-                                                        'block h-full',
-                                                        'bg-green-500' => $response->passed,
-                                                        'bg-amber-500' => $response->passed === false,
-                                                        'bg-teal-500' => $response->passed === null,
+                                                        'block h-full rounded-full',
+                                                        'bg-emerald-500' => $response->passed,
+                                                        'bg-red-500' => $response->passed === false,
+                                                        'bg-teal-600' => $response->passed === null,
                                                     ]) style="width: {{ (int) min(100, max(0, $response->percentage ?? 0)) }}%"></span>
                                                 </span>
-                                                <span class="font-mono text-xs text-zinc-400">{{ $response->percentage }}%</span>
+                                                <span class="qf-num text-xs text-zinc-400">{{ $response->percentage }}%</span>
                                             </div>
                                         @else
-                                            <span class="text-zinc-400">—</span>
+                                            <span class="text-zinc-300 dark:text-zinc-600">—</span>
                                         @endif
                                     </td>
                                 @endif
+
                                 <td class="px-5 py-3.5 text-zinc-600 dark:text-zinc-300">{{ $response->started_at->diffForHumans() }}</td>
-                                <td class="px-5 py-3.5 font-mono text-zinc-500 dark:text-zinc-400">
+
+                                <td class="qf-num px-5 py-3.5 text-zinc-500 dark:text-zinc-400">
                                     {{ $response->completed_at ? $response->started_at->shortAbsoluteDiffForHumans($response->completed_at) : '—' }}
                                 </td>
+
                                 <td class="px-5 py-3.5 text-right">
                                     @if ($canManage)
                                         @if ($response->trashed())
@@ -200,7 +246,7 @@ new class extends Component {
                                             <x-confirm
                                                 action="deleteResponse({{ $response->id }})"
                                                 :title="__('Move to trash?')"
-                                                :description="__('This response moves to the trash. You can restore it from the Trashed filter.')"
+                                                :description="__('This response moves to the trash. You can restore it from the Trash filter.')"
                                                 :confirm="__('Move to trash')"
                                                 icon="trash"
                                             >
@@ -218,8 +264,8 @@ new class extends Component {
             </div>
         </div>
 
-        <div class="mt-4">
-            {{ $responses->links() }}
-        </div>
+        @if ($responses->hasPages())
+            <div>{{ $responses->links() }}</div>
+        @endif
     @endif
 </section>

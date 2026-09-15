@@ -12,30 +12,61 @@ new class extends Component {
     {
         $user = Auth::user();
         $workspace = $user->currentWorkspace;
+        $monthStart = now()->startOfMonth();
 
         $counts = Quiz::query()
             ->selectRaw('status, count(*) as total')
             ->groupBy('status')
             ->pluck('total', 'status');
 
-        // 8-week response trend for the sparkline.
-        $trend = collect(range(7, 0))->map(function (int $weeksAgo) {
+        $monthResponses = QuizResponse::query()->where('started_at', '>=', $monthStart);
+
+        $started = (clone $monthResponses)->count();
+        $completed = (clone $monthResponses)->where('status', QuizResponse::STATUS_COMPLETED)->count();
+
+        $leadsThisMonth = (clone $monthResponses)
+            ->whereHas('answers', fn ($query) => $query->where('question_type', 'email'))
+            ->count();
+
+        // 8-week trend, one grouped query rather than eight counts.
+        $trendStart = now()->subWeeks(7)->startOfWeek();
+        $weekly = QuizResponse::query()
+            ->where('started_at', '>=', $trendStart)
+            ->get(['started_at'])
+            ->groupBy(fn (QuizResponse $r) => $r->started_at->startOfWeek()->toDateString())
+            ->map->count();
+
+        $trend = collect(range(7, 0))->map(function (int $weeksAgo) use ($weekly) {
             $start = now()->subWeeks($weeksAgo)->startOfWeek();
 
-            return QuizResponse::whereBetween('started_at', [$start, (clone $start)->endOfWeek()])->count();
+            return [
+                'label' => $start->format('M j'),
+                'value' => (int) ($weekly[$start->toDateString()] ?? 0),
+            ];
         })->values();
 
-        $max = max($trend->max(), 1);
+        $max = max($trend->max('value'), 1);
         $stepX = 560 / max($trend->count() - 1, 1);
-        $points = $trend->map(fn (int $value, int $i) => [
+        $points = $trend->map(fn (array $week, int $i) => [
             'x' => round($i * $stepX, 1),
-            'y' => round(100 - ($value / $max) * 78, 1),
+            'y' => round(104 - ($week['value'] / $max) * 84, 1),
+            'label' => $week['label'],
+            'value' => $week['value'],
         ]);
 
         $line = $points->map(fn ($p, $i) => ($i === 0 ? 'M' : 'L').' '.$p['x'].' '.$p['y'])->implode(' ');
         $area = 'M 0 120 L 0 '.$points->first()['y'].' '.$points->slice(1)->map(fn ($p) => 'L '.$p['x'].' '.$p['y'])->implode(' ').' L 560 120 Z';
 
         $hour = (int) now()->format('G');
+
+        // Published quizzes with no responses at all are the actionable
+        // thing on this screen: live, but nobody has seen them.
+        $needsAttention = Quiz::query()
+            ->where('status', QuizStatus::Published)
+            ->whereDoesntHave('responses')
+            ->latest('published_at')
+            ->limit(3)
+            ->get();
 
         return [
             'greeting' => match (true) {
@@ -46,174 +77,201 @@ new class extends Component {
             'firstName' => str($user->name)->before(' '),
             'workspace' => $workspace,
             'totalQuizzes' => $counts->sum(),
-            'newThisWeek' => Quiz::where('created_at', '>=', now()->subWeek())->count(),
             'draftCount' => $counts[QuizStatus::Draft->value] ?? 0,
             'publishedCount' => $counts[QuizStatus::Published->value] ?? 0,
-            'memberCount' => $workspace->members()->count(),
-            'memberLimit' => $limits->limit($workspace, 'members'),
-            'responsesThisMonth' => $limits->responsesThisMonth($workspace),
+            'responsesThisMonth' => $started,
             'responseLimit' => $limits->limit($workspace, 'responses_per_month'),
+            'completionRate' => $started > 0 ? (int) round($completed / $started * 100) : null,
+            'completedThisMonth' => $completed,
+            'leadsThisMonth' => $leadsThisMonth,
+            'trendPoints' => $points,
             'trendLine' => $line,
             'trendArea' => $area,
-            'trendLast' => $points->last(),
-            'recentQuizzes' => Quiz::query()->latest('updated_at')->limit(4)->get(),
+            'trendTotal' => $trend->sum('value'),
+            'needsAttention' => $needsAttention,
+            'recentQuizzes' => Quiz::query()->withCount('responses')->latest('updated_at')->limit(5)->get(),
             'canCreate' => $user->can('create', Quiz::class),
         ];
     }
 }; ?>
 
-<section class="w-full">
-    {{-- Greeting + primary action --}}
-    <div class="flex flex-wrap items-start justify-between gap-4">
-        <div>
-            <flux:heading size="xl" class="tracking-tight">{{ $greeting }}, {{ $firstName }}</flux:heading>
-            <flux:subheading>{{ __("Here's what's happening in :name today.", ['name' => $workspace->name]) }}</flux:subheading>
-        </div>
-
+<section class="flex w-full flex-col gap-6">
+    <x-page-header
+        :title="$greeting . ', ' . $firstName"
+        :description="__('Here\'s what\'s happening in :name.', ['name' => $workspace->name])"
+    >
+        <flux:button :href="route('quizzes.index')" wire:navigate variant="filled" icon="puzzle-piece">
+            {{ __('All quizzes') }}
+        </flux:button>
         @if ($canCreate)
             <flux:button :href="route('quizzes.create')" wire:navigate variant="primary" icon="plus">
                 {{ __('New quiz') }}
             </flux:button>
         @endif
+    </x-page-header>
+
+    {{-- Four distinct measures. Drafts vs. published used to take two tiles
+         to say one thing; that now lives under "Live quizzes". --}}
+    <div class="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        <x-stat
+            :label="__('Responses this month')"
+            :value="number_format($responsesThisMonth)"
+            :limit="$responseLimit"
+            icon="inbox"
+            :hint="__(':n completed', ['n' => number_format($completedThisMonth)])"
+        />
+        <x-stat
+            :label="__('Completion rate')"
+            :value="$completionRate === null ? '—' : $completionRate . '%'"
+            icon="check-circle"
+            :hint="$completionRate === null ? __('No responses yet this month') : __('of everyone who started')"
+        />
+        <x-stat
+            :label="__('Leads captured')"
+            :value="number_format($leadsThisMonth)"
+            icon="user-plus"
+            :hint="__('This month, incl. partials')"
+            :href="route('leads.index')"
+        />
+        <x-stat
+            :label="__('Live quizzes')"
+            :value="number_format($publishedCount)"
+            icon="globe-alt"
+            :hint="$draftCount > 0 ? __(':n in draft', ['n' => $draftCount]) : __('of :n total', ['n' => $totalQuizzes])"
+            :href="route('quizzes.index')"
+        />
     </div>
 
-    {{-- Stat cards --}}
-    <div class="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <div class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-            <div class="flex items-center justify-between">
-                <span class="text-sm font-semibold text-zinc-500 dark:text-zinc-400">{{ __('Total quizzes') }}</span>
-                <flux:icon.puzzle-piece class="size-4 text-teal-600 dark:text-teal-400" />
-            </div>
-            <div class="mt-3 flex items-end justify-between">
-                <span class="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white">{{ $totalQuizzes }}</span>
-                @if ($newThisWeek > 0)
-                    <span class="rounded-md bg-green-50 px-1.5 py-0.5 text-xs font-bold text-green-700 dark:bg-green-950/60 dark:text-green-400">+{{ $newThisWeek }}</span>
-                @endif
-            </div>
-        </div>
+    <div class="grid grid-cols-1 gap-4 xl:grid-cols-[1.7fr_1fr]">
+        {{-- Trend, with the axis labelled — a sparkline with no time scale
+             tells you a shape but not when anything happened. --}}
+        <x-panel :title="__('Responses')" :description="__('Weekly, last 8 weeks')">
+            <x-slot:actions>
+                <span class="qf-num text-sm font-bold text-zinc-900 dark:text-white">{{ number_format($trendTotal) }}</span>
+                <span class="text-xs text-zinc-400">{{ __('total') }}</span>
+            </x-slot:actions>
 
-        <div class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-            <div class="flex items-center justify-between">
-                <span class="text-sm font-semibold text-zinc-500 dark:text-zinc-400">{{ __('Drafts') }}</span>
-                <flux:icon.pencil-square class="size-4 text-amber-600 dark:text-amber-400" />
-            </div>
-            <div class="mt-3 flex items-end justify-between">
-                <span class="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white">{{ $draftCount }}</span>
-                <span class="font-mono text-xs text-zinc-400">{{ __('in progress') }}</span>
-            </div>
-        </div>
+            @if ($trendTotal === 0)
+                <x-empty-state
+                    compact
+                    icon="chart-bar"
+                    :title="__('No responses yet')"
+                    :description="__('Publish a quiz and share its link — responses will chart here as they arrive.')"
+                />
+            @else
+                <svg viewBox="0 0 560 120" preserveAspectRatio="none" class="block h-32 w-full" role="img" aria-label="{{ __('Weekly responses, last 8 weeks') }}">
+                    <defs>
+                        <linearGradient id="dash-trend" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0" stop-color="#0d9488" stop-opacity="0.16" />
+                            <stop offset="1" stop-color="#0d9488" stop-opacity="0" />
+                        </linearGradient>
+                    </defs>
 
-        <div class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-            <div class="flex items-center justify-between">
-                <span class="text-sm font-semibold text-zinc-500 dark:text-zinc-400">{{ __('Published') }}</span>
-                <flux:icon.globe-alt class="size-4 text-teal-600 dark:text-teal-400" />
-            </div>
-            <div class="mt-3 flex items-end justify-between">
-                <span class="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white">{{ $publishedCount }}</span>
-                @if ($publishedCount > 0)
-                    <span class="rounded-md bg-green-50 px-1.5 py-0.5 text-xs font-bold text-green-700 dark:bg-green-950/60 dark:text-green-400">{{ __('live') }}</span>
-                @endif
-            </div>
-        </div>
+                    {{-- Faint baseline grid so the line has something to sit against. --}}
+                    @foreach ([20, 62, 104] as $y)
+                        <line x1="0" y1="{{ $y }}" x2="560" y2="{{ $y }}" stroke="currentColor" stroke-width="1" class="text-zinc-200 dark:text-zinc-800" vector-effect="non-scaling-stroke" />
+                    @endforeach
 
-        <div class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-            <div class="flex items-center justify-between">
-                <span class="text-sm font-semibold text-zinc-500 dark:text-zinc-400">{{ __('Team members') }}</span>
-                <flux:icon.users class="size-4 text-teal-600 dark:text-teal-400" />
-            </div>
-            <div class="mt-3 flex items-end justify-between">
-                <span class="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white">{{ $memberCount }}</span>
-                <span class="font-mono text-xs text-zinc-400">{{ $memberLimit === null ? __('unlimited') : __('of :n seats', ['n' => $memberLimit]) }}</span>
-            </div>
-        </div>
+                    <path d="{{ $trendArea }}" fill="url(#dash-trend)" />
+                    <path d="{{ $trendLine }}" fill="none" stroke="#0d9488" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" class="dark:[stroke:#2dd4bf]" />
+                    <circle cx="{{ $trendPoints->last()['x'] }}" cy="{{ $trendPoints->last()['y'] }}" r="4" fill="#0d9488" class="dark:[fill:#2dd4bf]" />
+                </svg>
+
+                <div class="mt-2 flex justify-between">
+                    @foreach ($trendPoints as $i => $point)
+                        <span @class([
+                            'text-[10px] font-medium text-zinc-400 dark:text-zinc-500',
+                            'max-sm:hidden' => $i % 2 !== 0,
+                        ])>{{ $point['label'] }}</span>
+                    @endforeach
+                </div>
+            @endif
+        </x-panel>
+
+        {{-- Replaces "Quick actions" (which duplicated the sidebar) with
+             something only this screen can tell you. --}}
+        <x-panel :title="__('Needs attention')" icon="exclamation-triangle">
+            @if ($needsAttention->isEmpty())
+                <div class="flex h-full flex-col items-center justify-center gap-3 py-8 text-center">
+                    <span class="flex size-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
+                        <flux:icon.check class="size-5" />
+                    </span>
+                    <div>
+                        <p class="text-sm font-bold text-zinc-900 dark:text-white">{{ __('All clear') }}</p>
+                        <p class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{{ __('Every published quiz has responses.') }}</p>
+                    </div>
+                </div>
+            @else
+                <p class="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
+                    {{ __('Published, but no responses yet — they may need sharing.') }}
+                </p>
+                <ul class="flex flex-col gap-2">
+                    @foreach ($needsAttention as $quiz)
+                        <li wire:key="attention-{{ $quiz->id }}">
+                            <a href="{{ route('quizzes.show', $quiz) }}" wire:navigate class="qf-well flex items-center gap-3 p-2.5 transition hover:border-teal-300 dark:hover:border-teal-800">
+                                <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400">
+                                    <flux:icon.paper-airplane class="size-4" />
+                                </span>
+                                <span class="min-w-0 flex-1">
+                                    <span class="block truncate text-sm font-semibold text-zinc-900 dark:text-white">{{ $quiz->name }}</span>
+                                    <span class="block truncate text-xs text-zinc-500 dark:text-zinc-400">
+                                        {{ __('Live :time', ['time' => $quiz->published_at?->diffForHumans() ?? '']) }}
+                                    </span>
+                                </span>
+                                <flux:icon.chevron-right class="size-4 shrink-0 text-zinc-300 dark:text-zinc-600" />
+                            </a>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
+        </x-panel>
     </div>
 
-    {{-- Responses trend + quick actions --}}
-    <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1.6fr_1fr]">
-        <div class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-            <div class="flex items-center justify-between">
-                <span class="text-sm font-bold text-zinc-900 dark:text-white">{{ __('Responses this month') }}</span>
-                <span class="font-mono text-xs text-zinc-500 dark:text-zinc-400">{{ number_format($responsesThisMonth) }} / {{ $responseLimit === null ? '∞' : number_format($responseLimit) }}</span>
-            </div>
-            <div class="mt-1 flex items-baseline gap-2">
-                <span class="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white">{{ number_format($responsesThisMonth) }}</span>
-                <span class="text-xs font-semibold text-zinc-400">{{ __('last 8 weeks') }}</span>
-            </div>
-            <svg viewBox="0 0 560 120" preserveAspectRatio="none" class="mt-4 block h-28 w-full" role="img" aria-label="{{ __('Weekly responses trend') }}">
-                <defs>
-                    <linearGradient id="dash-trend" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0" stop-color="#0d9488" stop-opacity="0.18" />
-                        <stop offset="1" stop-color="#0d9488" stop-opacity="0" />
-                    </linearGradient>
-                </defs>
-                <path d="{{ $trendArea }}" fill="url(#dash-trend)" />
-                <path d="{{ $trendLine }}" fill="none" stroke="#0d9488" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="dark:[stroke:#2dd4bf]" />
-                <circle cx="{{ $trendLast['x'] }}" cy="{{ $trendLast['y'] }}" r="4" fill="#0d9488" class="dark:[fill:#2dd4bf]" />
-            </svg>
-        </div>
-
-        <div class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-            <span class="text-sm font-bold text-zinc-900 dark:text-white">{{ __('Quick actions') }}</span>
-            <div class="mt-4 space-y-2">
-                @php
-                    $actions = [
-                        ['route' => route('quizzes.create'), 'icon' => 'plus', 'bg' => 'bg-teal-600 text-white', 'title' => __('Create a quiz'), 'text' => __('Start from 14 types')],
-                        ['route' => route('settings.members'), 'icon' => 'user-plus', 'bg' => 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400', 'title' => __('Invite your team'), 'text' => __('Collaborate here')],
-                        ['route' => route('settings.workspace'), 'icon' => 'cog-6-tooth', 'bg' => 'bg-teal-50 text-teal-600 dark:bg-teal-950/60 dark:text-teal-400', 'title' => __('Workspace settings'), 'text' => __('Name, members, more')],
-                    ];
-                @endphp
-                @foreach ($actions as $action)
-                    <a href="{{ $action['route'] }}" wire:navigate class="flex items-center gap-3 rounded-xl border border-zinc-200 p-2.5 transition hover:border-teal-300 hover:bg-teal-50/40 dark:border-zinc-800 dark:hover:border-teal-800 dark:hover:bg-teal-950/30">
-                        <span class="flex size-9 shrink-0 items-center justify-center rounded-lg {{ $action['bg'] }}">
-                            <flux:icon :icon="$action['icon']" class="size-4.5" />
-                        </span>
-                        <span class="min-w-0 leading-tight">
-                            <span class="block text-sm font-bold text-zinc-900 dark:text-white">{{ $action['title'] }}</span>
-                            <span class="block truncate text-xs text-zinc-500 dark:text-zinc-400">{{ $action['text'] }}</span>
-                        </span>
-                    </a>
-                @endforeach
-            </div>
-        </div>
-    </div>
-
-    {{-- Recent quizzes --}}
-    <div class="mt-4 rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <div class="flex items-center justify-between border-b border-zinc-200 px-5 py-4 dark:border-zinc-800">
-            <span class="text-sm font-bold text-zinc-900 dark:text-white">{{ __('Recent quizzes') }}</span>
-            <flux:link :href="route('quizzes.index')" wire:navigate variant="subtle" class="text-sm font-semibold">{{ __('View all') }}</flux:link>
-        </div>
+    <x-panel :title="__('Recent quizzes')" flush>
+        <x-slot:actions>
+            <flux:link :href="route('quizzes.index')" wire:navigate variant="subtle" class="text-sm font-semibold">
+                {{ __('View all') }}
+            </flux:link>
+        </x-slot:actions>
 
         @if ($recentQuizzes->isEmpty())
-            <div class="flex flex-col items-center justify-center p-10 text-center">
-                <flux:icon.puzzle-piece class="size-8 text-zinc-400" />
-                <flux:heading class="mt-3">{{ __('No quizzes yet') }}</flux:heading>
-                <flux:subheading class="max-w-xs">{{ __('Create your first quiz and it will show up here.') }}</flux:subheading>
+            <x-empty-state
+                icon="puzzle-piece"
+                :title="__('No quizzes yet')"
+                :description="__('Build your first quiz, publish it, and start collecting responses.')"
+            >
                 @if ($canCreate)
-                    <flux:button :href="route('quizzes.create')" wire:navigate variant="primary" size="sm" icon="plus" class="mt-4">{{ __('New quiz') }}</flux:button>
+                    <flux:button :href="route('quizzes.create')" wire:navigate variant="primary" icon="plus">
+                        {{ __('Create a quiz') }}
+                    </flux:button>
                 @endif
-            </div>
+            </x-empty-state>
         @else
-            <ul>
+            <ul class="divide-y divide-zinc-100 dark:divide-zinc-800">
                 @foreach ($recentQuizzes as $quiz)
-                    <li wire:key="recent-{{ $quiz->id }}" class="border-b border-zinc-100 last:border-0 dark:border-zinc-800/70">
-                        <a href="{{ route('quizzes.show', $quiz) }}" wire:navigate class="flex items-center gap-3.5 px-5 py-3.5 transition hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
-                            <span class="flex size-9.5 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-600 dark:bg-teal-950/60 dark:text-teal-400">
+                    <li wire:key="recent-{{ $quiz->id }}">
+                        <a href="{{ route('quizzes.show', $quiz) }}" wire:navigate class="flex items-center gap-4 px-5 py-3.5 transition hover:bg-zinc-50 dark:hover:bg-zinc-800/40">
+                            <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-600 dark:bg-teal-950/60 dark:text-teal-400">
                                 <flux:icon :icon="$quiz->type->icon()" class="size-4.5" />
                             </span>
-                            <span class="min-w-0 flex-1 leading-tight">
+
+                            <span class="min-w-0 flex-1">
                                 <span class="block truncate text-sm font-bold text-zinc-900 dark:text-white">{{ $quiz->name }}</span>
                                 <span class="block truncate text-xs text-zinc-500 dark:text-zinc-400">
                                     {{ $quiz->type->label() }} · {{ __('Updated :time', ['time' => $quiz->updated_at->diffForHumans()]) }}
                                 </span>
                             </span>
-                            <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $quiz->status->badgeClasses() }}">
-                                {{ $quiz->status->label() }}
+
+                            <span class="hidden text-right sm:block">
+                                <span class="qf-num block text-sm font-bold text-zinc-900 dark:text-white">{{ number_format($quiz->responses_count) }}</span>
+                                <span class="block text-[11px] text-zinc-400">{{ __('responses') }}</span>
                             </span>
+
+                            <x-status-pill :status="$quiz->status" />
                         </a>
                     </li>
                 @endforeach
             </ul>
         @endif
-    </div>
+    </x-panel>
 </section>

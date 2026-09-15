@@ -91,3 +91,288 @@ textarea:focus[data-flux-control],
 select:focus[data-flux-control] {
     @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-white dark:ring-offset-zinc-900;
 }
+
+/*
+ |--------------------------------------------------------------------------
+ | Surfaces
+ |--------------------------------------------------------------------------
+ | Every panel in the app used to hand-roll the same six utility classes,
+ | which is how the spacing and radii drifted apart page to page. These are
+ | the only surfaces; pages compose them instead of restating them.
+ |
+ | Depth model: the page sits on a tinted ground, chrome and panels are
+ | white. That separation is what makes content read as content.
+ */
+@layer components {
+    .qf-surface {
+        @apply rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900;
+    }
+
+    /* A panel that is itself a link/button target. */
+    .qf-surface-interactive {
+        @apply rounded-xl border border-zinc-200 bg-white transition duration-150 hover:border-zinc-300 hover:shadow-[0_1px_2px_rgba(16,24,40,.06),0_8px_24px_-12px_rgba(16,24,40,.18)] dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700;
+    }
+
+    /* Inset well: nested inside a panel, one step *down* from it. */
+    .qf-well {
+        @apply rounded-lg border border-zinc-200/70 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950/40;
+    }
+
+    /* Section label above a group of controls or a list. */
+    .qf-eyebrow {
+        @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-400 dark:text-zinc-500;
+    }
+
+    /* Tabular figures wherever numbers stack or sit in a column. */
+    .qf-num {
+        font-variant-numeric: tabular-nums;
+        @apply tracking-tight;
+    }
+
+    /* Horizontal tab bar (quiz sub-nav, filter rows). */
+    .qf-tab {
+        @apply relative inline-flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 border-transparent px-1 pb-3 text-sm font-semibold text-zinc-500 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white;
+    }
+
+    .qf-tab-active {
+        @apply border-teal-600 text-zinc-900 dark:border-teal-400 dark:text-white;
+    }
+
+    /* Scroll container for tab rows / wide tables on small screens. */
+    .qf-scroll-x {
+        @apply overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
+    }
+}
+
+/* Sticky page headers shouldn't sit flush against scrolled content. */
+.qf-sticky {
+    @apply sticky top-0 z-20 backdrop-blur-sm;
+}
+
+/*
+ | Player form controls
+ |--------------------------------------------------------------------------
+ | This project does not use @tailwindcss/forms, so native controls get no
+ | styling of their own — `border-zinc-300` alone sets a colour on a zero-width
+ | border, which is why these fields used to render as invisible boxes.
+ |
+ | Everything here is driven by the per-quiz design variables (--qf-*), so the
+ | Design tab's colours, radius and input style actually reach the player and
+ | the author's preview. Scoped to #qf-player so the admin UI is untouched.
+ */
+#qf-player .qf-field {
+    width: 100%;
+    font: inherit;
+    font-size: 0.95em;
+    color: var(--qf-text);
+    background: transparent;
+    border: 1px solid var(--qf-card-border);
+    border-radius: var(--qf-radius);
+    padding: 0.6rem 0.8rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    appearance: none;
+}
+
+#qf-player .qf-field::placeholder {
+    color: var(--qf-muted);
+    opacity: 0.75;
+}
+
+#qf-player .qf-field:focus {
+    outline: none;
+    border-color: var(--qf-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--qf-primary) 22%, transparent);
+}
+
+#qf-player textarea.qf-field {
+    min-height: 6rem;
+    resize: vertical;
+}
+
+/* A select needs its own arrow once `appearance` is stripped. */
+#qf-player select.qf-field {
+    padding-right: 2.25rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23888' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.6' d='m6 8 4 4 4-4'/%3E%3C/svg%3E");
+    background-position: right 0.6rem center;
+    background-repeat: no-repeat;
+    background-size: 1.1rem;
+}
+
+/* Design tab: input style ------------------------------------------------ */
+#qf-player[data-input-style='filled'] .qf-field {
+    border-color: transparent;
+    background-color: color-mix(in srgb, var(--qf-text) 7%, transparent);
+}
+
+#qf-player[data-input-style='underline'] .qf-field {
+    border: 0;
+    border-bottom: 2px solid var(--qf-card-border);
+    border-radius: 0;
+    padding-left: 0;
+    padding-right: 0;
+    background-color: transparent;
+}
+
+#qf-player[data-input-style='underline'] select.qf-field {
+    padding-right: 1.6rem;
+    background-position: right 0 center;
+}
+
+#qf-player[data-input-style='underline'] .qf-field:focus {
+    box-shadow: none;
+    border-bottom-color: var(--qf-primary);
+}
+
+/* Choice cards (radio / checkbox rows) ----------------------------------- */
+#qf-player .qf-choice {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid var(--qf-card-border);
+    border-radius: var(--qf-btn-radius);
+    color: var(--qf-text);
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+#qf-player .qf-choice:hover {
+    border-color: color-mix(in srgb, var(--qf-primary) 55%, var(--qf-card-border));
+}
+
+#qf-player .qf-choice:has(:checked) {
+    border-color: var(--qf-primary);
+    background-color: color-mix(in srgb, var(--qf-primary) 12%, transparent);
+}
+
+#qf-player .qf-choice:has(:focus-visible) {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--qf-primary) 22%, transparent);
+}
+
+/* Native check/radio marks take the quiz's accent. */
+#qf-player input[type='checkbox'],
+#qf-player input[type='radio'] {
+    accent-color: var(--qf-primary);
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+/* Scale / rating buttons ------------------------------------------------- */
+#qf-player .qf-scale-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.5rem;
+    height: 2.5rem;
+    padding: 0 0.5rem;
+    font-size: 0.9em;
+    font-weight: 500;
+    color: var(--qf-text);
+    background: transparent;
+    border: 1px solid var(--qf-card-border);
+    border-radius: var(--qf-btn-radius);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+#qf-player .qf-scale-btn:hover {
+    border-color: var(--qf-primary);
+}
+
+#qf-player .qf-scale-btn[aria-pressed='true'] {
+    background-color: var(--qf-primary);
+    border-color: var(--qf-primary);
+    color: var(--qf-primary-ink);
+}
+
+/* Matrix ----------------------------------------------------------------- */
+#qf-player .qf-matrix th,
+#qf-player .qf-matrix td {
+    padding: 0.55rem 0.5rem;
+}
+
+#qf-player .qf-matrix thead th {
+    font-size: 0.8em;
+    font-weight: 500;
+    color: var(--qf-muted);
+    text-align: center;
+}
+
+#qf-player .qf-matrix tbody tr + tr {
+    border-top: 1px solid color-mix(in srgb, var(--qf-card-border) 60%, transparent);
+}
+
+/*
+ | Rich text
+ |--------------------------------------------------------------------------
+ | Shared by the <x-rich-text> editor and the read-only rendering of an
+ | outcome description on the player, so authors see what respondents get.
+ */
+.qf-rich-text:empty::before {
+    content: attr(data-placeholder);
+    @apply text-zinc-400 dark:text-zinc-500;
+}
+
+.qf-rich-text p,
+.qf-prose p {
+    @apply my-2 first:mt-0 last:mb-0;
+}
+
+.qf-rich-text h2,
+.qf-prose h2 {
+    @apply mt-4 mb-2 text-lg font-bold first:mt-0;
+}
+
+.qf-rich-text h3,
+.qf-prose h3 {
+    @apply mt-4 mb-2 text-base font-bold first:mt-0;
+}
+
+.qf-rich-text h4,
+.qf-prose h4 {
+    @apply mt-3 mb-1.5 text-sm font-bold first:mt-0;
+}
+
+.qf-rich-text ul,
+.qf-prose ul {
+    @apply my-2 list-disc pl-5;
+}
+
+.qf-rich-text ol,
+.qf-prose ol {
+    @apply my-2 list-decimal pl-5;
+}
+
+.qf-rich-text li,
+.qf-prose li {
+    @apply my-0.5;
+}
+
+.qf-rich-text blockquote,
+.qf-prose blockquote {
+    @apply my-3 border-l-2 border-zinc-300 pl-3 italic dark:border-zinc-700;
+}
+
+.qf-rich-text a,
+.qf-prose a {
+    @apply underline underline-offset-2;
+    color: var(--qf-primary, var(--color-teal-600));
+}
+
+.qf-rich-text strong,
+.qf-prose strong {
+    @apply font-bold;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

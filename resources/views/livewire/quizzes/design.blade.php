@@ -18,6 +18,8 @@ new class extends Component
 
     public bool $isPro = false;
 
+    public bool $canRemoveBranding = false;
+
     // Live URLs for the stored assets (entangled into the Alpine preview).
     public ?string $logoUrl = null;
 
@@ -38,7 +40,8 @@ new class extends Component
 
         $this->quiz = $quiz;
         $this->design = QuizDesign::forQuiz($quiz);
-        $this->isPro = app(UsageLimits::class)->planKey($quiz->workspace) !== 'free';
+        $this->isPro = app(UsageLimits::class)->feature($quiz->workspace, 'custom_code');
+        $this->canRemoveBranding = app(UsageLimits::class)->feature($quiz->workspace, 'remove_branding');
 
         $this->refreshUrls();
     }
@@ -80,6 +83,12 @@ new class extends Component
         if (! $this->isPro) {
             $clean['custom_css'] = $current['custom_css'];
             $clean['custom_js'] = $current['custom_js'];
+        }
+
+        // Same for hiding the branding: the toggle is hidden on the free plan,
+        // but the payload is client-supplied, so enforce it here too.
+        if (! $this->canRemoveBranding) {
+            $clean['hide_branding'] = $current['hide_branding'] ?? false;
         }
 
         $this->persist($clean);
@@ -166,6 +175,7 @@ new class extends Component
         return [
             'catalog' => QuizDesign::catalog(),
             'defaults' => QuizDesign::defaults(),
+            'responseCount' => $this->quiz->responses()->count(),
         ];
     }
 }; ?>
@@ -236,22 +246,24 @@ new class extends Component
         reset() { this.d = JSON.parse(JSON.stringify(this.defaults)); $wire.resetDesign(); },
     }"
 >
-    <div class="flex flex-wrap items-end justify-between gap-3">
-        <div class="min-w-0">
-            <a href="{{ route('quizzes.show', $quiz) }}" wire:navigate class="flex w-fit items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200">
-                <flux:icon.arrow-left class="size-3.5" />
-                {{ $quiz->name }}
-            </a>
-            <flux:heading size="xl" class="mt-1 tracking-tight">{{ __('Design') }}</flux:heading>
-            <flux:subheading>{{ __('Style this quiz to match your brand. Changes preview instantly.') }}</flux:subheading>
-        </div>
+    <x-page-header
+        :title="$quiz->name"
+        :back="route('quizzes.index')"
+        :back-label="__('Quizzes')"
+    >
+        <x-slot:meta>
+            <x-status-pill :status="$quiz->status" />
+            <span>{{ __('Changes preview instantly on the right.') }}</span>
+        </x-slot:meta>
 
-        <div class="flex items-center gap-2">
-            <x-action-message on="design-saved" class="text-xs font-semibold text-teal-600 dark:text-teal-400">{{ __('Saved') }}</x-action-message>
-            <flux:button variant="subtle" size="sm" icon="arrow-uturn-left" x-on:click="reset()">{{ __('Reset') }}</flux:button>
-            <flux:button variant="primary" size="sm" icon="check" x-on:click="$wire.save(d)">{{ __('Save design') }}</flux:button>
-        </div>
-    </div>
+        <x-action-message on="design-saved" class="text-xs font-semibold text-teal-600 dark:text-teal-400">{{ __('Saved') }}</x-action-message>
+        <flux:button variant="filled" icon="arrow-uturn-left" x-on:click="reset()">{{ __('Reset') }}</flux:button>
+        <flux:button variant="primary" icon="check" x-on:click="$wire.save(d)">{{ __('Save design') }}</flux:button>
+
+        <x-slot:tabs>
+            <x-quiz-nav :quiz="$quiz" :response-count="$responseCount" />
+        </x-slot:tabs>
+    </x-page-header>
 
     <div class="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] xl:grid-cols-[minmax(0,1fr)_minmax(0,30rem)]">
         {{-- ─────────────── Controls ─────────────── --}}
@@ -355,6 +367,27 @@ new class extends Component
                 </div>
             </x-design.section>
 
+            {{-- Branding (Pro) --}}
+            <x-design.section :title="__('Branding')" icon="sparkles" :pro="true">
+                @if ($canRemoveBranding)
+                    <label class="flex cursor-pointer items-start gap-3">
+                        <input type="checkbox" x-model="d.hide_branding" class="mt-0.5 size-4 rounded border-zinc-300 accent-teal-600 dark:border-zinc-600" />
+                        <span>
+                            <span class="block text-sm font-medium text-zinc-800 dark:text-zinc-100">{{ __('Hide “Powered by QuizForge”') }}</span>
+                            <span class="mt-0.5 block text-xs text-zinc-500 dark:text-zinc-400">{{ __('Removes the footer line from your published quiz.') }}</span>
+                        </span>
+                    </label>
+                @else
+                    <div class="flex flex-col items-center gap-3 rounded-xl border border-dashed border-zinc-300 p-6 text-center dark:border-zinc-700">
+                        <span class="flex size-10 items-center justify-center rounded-full bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400">
+                            <flux:icon.lock-closed class="size-5" />
+                        </span>
+                        <p class="text-sm font-medium text-zinc-700 dark:text-zinc-200">{{ __('Removing QuizForge branding is a Pro feature.') }}</p>
+                        <flux:button :href="route('settings.billing')" wire:navigate variant="primary" size="sm">{{ __('Upgrade to Pro') }}</flux:button>
+                    </div>
+                @endif
+            </x-design.section>
+
             {{-- Advanced (Pro) --}}
             <x-design.section :title="__('Custom code')" icon="code-bracket" :pro="true">
                 @if ($isPro)
@@ -451,7 +484,7 @@ new class extends Component
                             </button>
                         </div>
 
-                        <p class="mt-4 text-center text-[11px]" :style="{ color: 'var(--qf-muted)' }">{{ __('Powered by QuizForge') }}</p>
+                        <p x-show="! d.hide_branding" class="mt-4 text-center text-[11px]" :style="{ color: 'var(--qf-muted)' }">{{ __('Powered by QuizForge') }}</p>
                     </div>
                 </div>
             </div>

@@ -23,7 +23,8 @@ new class extends Component {
             ->whereHas('answers', fn ($query) => $query->where('question_type', 'email'))
             ->when($this->search !== '', fn ($query) => $query->whereHas(
                 'answers',
-                fn ($answers) => $answers->where('question_type', 'email')->where('value', 'like', '%'.$this->search.'%'),
+                fn ($answers) => $answers->where('question_type', 'email')
+                    ->where('value', 'like', '%'.addcslashes($this->search, '%_\\').'%'),
             ))
             ->with('quiz')
             ->latest('started_at')
@@ -40,72 +41,124 @@ new class extends Component {
                 'phone' => $answers->firstWhere('question_type', 'phone')?->value,
             ]);
 
+        // Unfiltered totals for the summary tiles — a search shouldn't make
+        // it look like leads disappeared.
+        $allLeads = QuizResponse::query()
+            ->whereHas('answers', fn ($query) => $query->where('question_type', 'email'));
+
         return [
             'leads' => $leads,
             'contacts' => $contacts,
+            'totalLeads' => (clone $allLeads)->count(),
+            'completedLeads' => (clone $allLeads)->where('status', QuizResponse::STATUS_COMPLETED)->count(),
+            'leadsThisMonth' => (clone $allLeads)->where('started_at', '>=', now()->startOfMonth())->count(),
         ];
     }
 }; ?>
 
-<section class="w-full">
-    <div class="flex flex-wrap items-center justify-between gap-4">
-        <div>
-            <flux:heading size="xl" class="tracking-tight">{{ __('Leads') }}</flux:heading>
-            <flux:subheading>{{ __('Everyone who left an email address — including partial responses.') }}</flux:subheading>
-        </div>
+<section class="flex w-full flex-col gap-6">
+    <x-page-header
+        :title="__('Leads')"
+        :description="__('Everyone who left an email address — including people who never finished.')"
+    >
+        @if ($totalLeads > 0)
+            <div class="w-full sm:w-72">
+                <flux:input
+                    wire:model.live.debounce.300ms="search"
+                    icon="magnifying-glass"
+                    :placeholder="__('Search by email…')"
+                    :aria-label="__('Search leads')"
+                    clearable
+                />
+            </div>
+        @endif
+    </x-page-header>
 
-        <div class="w-full max-w-xs">
-            <flux:input
-                wire:model.live.debounce.300ms="search"
-                icon="magnifying-glass"
-                placeholder="{{ __('Search by email…') }}"
-                aria-label="{{ __('Search leads') }}"
+    @if ($totalLeads > 0)
+        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <x-stat :label="__('Total leads')" :value="number_format($totalLeads)" icon="user-plus" />
+            <x-stat :label="__('From completed')" :value="number_format($completedLeads)" icon="check-circle" :hint="__('Finished the whole quiz')" />
+            <x-stat
+                :label="__('From partials')"
+                :value="number_format($totalLeads - $completedLeads)"
+                icon="clock"
+                :hint="__('Left an email but dropped off')"
             />
+            <x-stat :label="__('This month')" :value="number_format($leadsThisMonth)" icon="calendar" :hint="now()->format('F')" />
         </div>
-    </div>
+    @endif
 
     @if ($leads->isEmpty())
-        <div class="mt-16 flex flex-col items-center justify-center text-center">
-            <flux:icon.user-plus class="size-10 text-zinc-400" />
-            <flux:heading class="mt-4">
-                {{ $search !== '' ? __('No leads match your search') : __('No leads yet') }}
-            </flux:heading>
-            <flux:subheading class="max-w-sm">
-                {{ $search !== '' ? __('Try a different email.') : __('Add an Email question to any quiz — every address lands here automatically, even from unfinished responses.') }}
-            </flux:subheading>
+        <div class="qf-surface">
+            @if ($search !== '')
+                <x-empty-state
+                    icon="magnifying-glass"
+                    :title="__('No leads match that search')"
+                    :description="__('Try a different email address or clear the search.')"
+                />
+            @else
+                <x-empty-state
+                    icon="user-plus"
+                    :title="__('No leads yet')"
+                    :description="__('Add an Email question to any quiz — every address lands here automatically, even from unfinished responses.')"
+                >
+                    <flux:button :href="route('quizzes.index')" wire:navigate variant="primary" icon="puzzle-piece">
+                        {{ __('Go to your quizzes') }}
+                    </flux:button>
+                </x-empty-state>
+            @endif
         </div>
     @else
-        <div class="mt-6 overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800">
+        <div class="qf-surface overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full min-w-160 text-sm">
-                    <thead class="border-b border-zinc-200 bg-zinc-50 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800/60 dark:text-zinc-400">
+                    <thead class="border-b border-zinc-200 bg-zinc-50/60 text-left dark:border-zinc-800 dark:bg-zinc-950/30">
                         <tr>
-                            <th class="px-5 py-3">{{ __('Email') }}</th>
-                            <th class="px-5 py-3">{{ __('Phone') }}</th>
-                            <th class="px-5 py-3">{{ __('Quiz') }}</th>
-                            <th class="px-5 py-3">{{ __('Status') }}</th>
-                            <th class="px-5 py-3">{{ __('Date') }}</th>
+                            <th class="qf-eyebrow px-5 py-3 font-semibold">{{ __('Email') }}</th>
+                            <th class="qf-eyebrow px-5 py-3 font-semibold">{{ __('Phone') }}</th>
+                            <th class="qf-eyebrow px-5 py-3 font-semibold">{{ __('Quiz') }}</th>
+                            <th class="qf-eyebrow px-5 py-3 font-semibold">{{ __('Status') }}</th>
+                            <th class="qf-eyebrow px-5 py-3 font-semibold">{{ __('Captured') }}</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800/70">
+                    <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
                         @foreach ($leads as $lead)
-                            <tr wire:key="lead-{{ $lead->id }}" class="bg-white dark:bg-zinc-900">
+                            <tr wire:key="lead-{{ $lead->id }}" class="transition hover:bg-zinc-50 dark:hover:bg-zinc-800/40">
                                 <td class="px-5 py-3.5">
-                                    <a href="{{ route('quizzes.responses.show', [$lead->quiz_id, $lead->id]) }}" wire:navigate class="font-bold text-zinc-900 hover:underline dark:text-white">
+                                    <a href="{{ route('quizzes.responses.show', [$lead->quiz_id, $lead->id]) }}" wire:navigate class="font-bold text-zinc-900 hover:text-teal-700 dark:text-white dark:hover:text-teal-400">
                                         {{ $contacts[$lead->id]['email'] ?? '—' }}
                                     </a>
                                 </td>
-                                <td class="px-5 py-3.5 font-mono text-zinc-600 dark:text-zinc-300">{{ $contacts[$lead->id]['phone'] ?? '—' }}</td>
-                                <td class="px-5 py-3.5 text-zinc-600 dark:text-zinc-300">{{ $lead->quiz?->name }}</td>
+
+                                <td class="qf-num px-5 py-3.5 text-zinc-600 dark:text-zinc-300">
+                                    {{ $contacts[$lead->id]['phone'] ?? '—' }}
+                                </td>
+
+                                <td class="px-5 py-3.5">
+                                    @if ($lead->quiz)
+                                        <a href="{{ route('quizzes.show', $lead->quiz_id) }}" wire:navigate class="text-zinc-600 hover:text-teal-700 dark:text-zinc-300 dark:hover:text-teal-400">
+                                            {{ $lead->quiz->name }}
+                                        </a>
+                                    @else
+                                        <span class="text-zinc-400">—</span>
+                                    @endif
+                                </td>
+
                                 <td class="px-5 py-3.5">
                                     <span @class([
-                                        'rounded-full border px-2.5 py-0.5 text-xs font-semibold',
-                                        'border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950/60 dark:text-green-300' => $lead->isCompleted(),
-                                        'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-300' => ! $lead->isCompleted(),
+                                        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold',
+                                        'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400' => $lead->isCompleted(),
+                                        'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400' => ! $lead->isCompleted(),
                                     ])>
+                                        <span @class([
+                                            'size-1.5 rounded-full',
+                                            'bg-emerald-500' => $lead->isCompleted(),
+                                            'bg-amber-500' => ! $lead->isCompleted(),
+                                        ])></span>
                                         {{ $lead->isCompleted() ? __('Completed') : __('Partial') }}
                                     </span>
                                 </td>
+
                                 <td class="px-5 py-3.5 text-zinc-600 dark:text-zinc-300">{{ $lead->started_at->diffForHumans() }}</td>
                             </tr>
                         @endforeach
@@ -114,8 +167,8 @@ new class extends Component {
             </div>
         </div>
 
-        <div class="mt-4">
-            {{ $leads->links() }}
-        </div>
+        @if ($leads->hasPages())
+            <div>{{ $leads->links() }}</div>
+        @endif
     @endif
 </section>
