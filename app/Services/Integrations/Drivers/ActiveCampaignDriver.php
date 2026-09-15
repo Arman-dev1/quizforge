@@ -2,20 +2,16 @@
 
 namespace App\Services\Integrations\Drivers;
 
-use App\Services\Integrations\IntegrationException;
 use Illuminate\Support\Facades\Http;
 
 class ActiveCampaignDriver extends AbstractDriver
 {
     protected function base(array $credentials): string
     {
-        $url = rtrim($credentials['api_url'] ?? '', '/');
-
-        if ($url === '' || ! str_starts_with($url, 'http')) {
-            throw new IntegrationException(__('Enter your full ActiveCampaign API URL (https://your-account.api-us1.com).'));
-        }
-
-        return $url;
+        return $this->guardBaseUrl(
+            (string) ($credentials['api_url'] ?? ''),
+            __('Enter your full ActiveCampaign API URL, e.g. https://your-account.api-us1.com'),
+        );
     }
 
     protected function client(array $credentials)

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\WorkspaceRole;
 use Database\Factories\WorkspaceInvitationFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -45,6 +46,18 @@ class WorkspaceInvitation extends Model
     public function isExpired(): bool
     {
         return $this->expires_at->isPast();
+    }
+
+    /**
+     * Invitations that can still be accepted. Expired ones must not hold a
+     * seat against the workspace's plan — otherwise a lapsed invite costs
+     * the customer a seat forever.
+     *
+     * @param  Builder<self>  $query
+     */
+    public function scopePending(Builder $query): void
+    {
+        $query->where('expires_at', '>', now());
     }
 
     public static function generateToken(): string

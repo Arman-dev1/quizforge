@@ -9,10 +9,13 @@ class MailchimpDriver extends AbstractDriver
 {
     protected function base(array $credentials): string
     {
-        $key = $credentials['api_key'] ?? '';
-        $dc = str_contains($key, '-') ? substr($key, strpos($key, '-') + 1) : '';
+        $key = (string) ($credentials['api_key'] ?? '');
+        $dc = str_contains($key, '-') ? substr($key, strrpos($key, '-') + 1) : '';
 
-        if ($dc === '') {
+        // The datacenter is spliced straight into the hostname, so it has
+        // to match Mailchimp's actual format exactly ("us21", "eu4", …).
+        // Anything looser lets a crafted key redirect the request.
+        if (! preg_match('/^[a-z]{2}\d{1,3}$/', $dc)) {
             throw new IntegrationException(__('That does not look like a Mailchimp API key (it should end in "-usXX").'));
         }
 

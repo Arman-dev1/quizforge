@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Platform\ImpersonationController;
 use App\Http\Controllers\ResponseExportController;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
@@ -7,20 +8,37 @@ use Livewire\Volt\Volt;
 // A view route (not a closure) so `route:cache` works in production.
 Route::view('/', 'welcome')->name('home');
 
-Volt::route('q/{slug}', 'play')
+// Public player. `/quiz/{slug}` is the canonical address; the old `/q/{slug}`
+// stays as a permanent redirect so links already shared keep working.
+Volt::route('quiz/{slug}', 'play')
     ->middleware('throttle:60,1')
     ->name('quiz.play');
+
+Route::permanentRedirect('q/{slug}', 'quiz/{slug}');
+
+// Ending an impersonated session. Starting one happens inside the panel
+// (a CSRF-protected Livewire action); this only ever drops a session, so it
+// is safe to expose to whoever currently holds it.
+Route::post('platform/impersonate/stop', [ImpersonationController::class, 'stop'])
+    ->name('platform.impersonate.stop');
 
 Volt::route('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
 
+// Account pages stay reachable without a verified email — this is where
+// someone fixes the address they mistyped at registration.
 Route::middleware(['auth'])->group(function () {
     Route::redirect('settings', 'settings/profile');
 
     Volt::route('settings/profile', 'settings.profile')->name('settings.profile');
     Volt::route('settings/password', 'settings.password')->name('settings.password');
     Volt::route('settings/appearance', 'settings.appearance')->name('settings.appearance');
+});
+
+// Everything that creates content, spends quota, or touches other people
+// requires a verified email.
+Route::middleware(['auth', 'verified'])->group(function () {
     Volt::route('settings/workspace', 'settings.workspace')->name('settings.workspace');
     Volt::route('settings/members', 'settings.members')->name('settings.members');
     Volt::route('settings/notifications', 'settings.notifications')->name('settings.notifications');
@@ -35,6 +53,7 @@ Route::middleware(['auth'])->group(function () {
     Volt::route('quizzes/{quiz}/builder', 'quizzes.builder')->name('quizzes.builder');
     Volt::route('quizzes/{quiz}/preview', 'quizzes.preview')->name('quizzes.preview');
     Volt::route('quizzes/{quiz}/design', 'quizzes.design')->name('quizzes.design');
+    Volt::route('quizzes/{quiz}/results', 'quizzes.results')->name('quizzes.results');
 
     Volt::route('quizzes/{quiz}/integrations', 'quizzes.integrations')->name('quizzes.integrations');
     Volt::route('quizzes/{quiz}/responses', 'quizzes.responses')->name('quizzes.responses');

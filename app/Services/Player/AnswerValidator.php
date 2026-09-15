@@ -57,12 +57,14 @@ class AnswerValidator
 
             QuestionType::MultipleChoice => [
                 '' => $question['is_required'] ? ['required', 'array', 'min:1'] : ['nullable', 'array'],
-                '.*' => ['integer', Rule::in($optionIds)],
+                '.*' => ['integer', 'distinct', Rule::in($optionIds)],
             ],
 
+            // A ranking is only meaningful if every option is placed exactly
+            // once — a partial or duplicated list is not a valid ordering.
             QuestionType::Ranking => [
-                '' => [$required, 'array'],
-                '.*' => ['integer', Rule::in($optionIds)],
+                '' => [$required, 'array', 'size:'.count($optionIds)],
+                '.*' => ['integer', 'distinct', Rule::in($optionIds)],
             ],
 
             QuestionType::YesNo => ['' => [$required, Rule::in(['yes', 'no'])]],

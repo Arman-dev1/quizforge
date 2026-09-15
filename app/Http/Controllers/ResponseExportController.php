@@ -38,15 +38,16 @@ class ResponseExportController extends Controller
                 ...array_map(fn (array $question) => $question['title'], array_values($questions)),
             ]);
 
+            // chunkByIdDesc keeps newest-first while paging on a unique key,
+            // so rows can't be skipped or repeated when timestamps tie.
             $quiz->responses()
                 ->with('answers')
-                ->latest('started_at')
-                ->chunk(200, function ($responses) use ($handle, $questions, $formatter) {
+                ->chunkByIdDesc(200, function ($responses) use ($handle, $questions, $formatter) {
                     foreach ($responses as $response) {
                         /** @var QuizResponse $response */
                         $answers = $response->answers->keyBy('question_id');
 
-                        fputcsv($handle, [
+                        fputcsv($handle, array_map($this->safeCell(...), [
                             $response->id,
                             $response->status,
                             $response->started_at->toDateTimeString(),
@@ -60,11 +61,23 @@ class ResponseExportController extends Controller
                                 fn (int $questionId) => $formatter->format($questions[$questionId], $answers[$questionId]->value ?? null),
                                 array_keys($questions),
                             ),
-                        ]);
+                        ]));
                     }
                 });
 
             fclose($handle);
         }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    /**
+     * Neutralise spreadsheet formula injection. Respondents write these
+     * cells; a value starting with =, +, - or @ executes as a formula when
+     * the owner opens the export in Excel or Sheets.
+     */
+    protected function safeCell(mixed $value): string
+    {
+        $value = (string) $value;
+
+        return preg_match('/^[=+\-@\t\r]/', $value) ? "'".$value : $value;
     }
 }
