@@ -194,19 +194,19 @@ class PlayerLogicScoringTest extends TestCase
         $this->assertSame(5, QuizResponse::first()->score);
     }
 
-    public function test_results_settings_can_be_saved_from_the_quiz_page(): void
+    public function test_results_settings_can_be_saved_from_the_results_page(): void
     {
         [$owner, $quiz] = $this->ownerWithQuiz();
 
         $this->actingAs($owner);
 
-        Volt::test('quizzes.show', ['quiz' => $quiz])
-            ->set('resultScored', true)
-            ->set('resultPassPercentage', '60')
-            ->set('resultGrades', "80:Gold\n0:Bronze\nnot-a-band")
-            ->set('resultMessage', 'Thanks a bunch!')
-            ->set('resultRedirect', 'https://example.com/next')
-            ->call('saveResults')
+        Volt::test('quizzes.results', ['quiz' => $quiz])
+            ->set('scored', true)
+            ->set('passPercentage', '60')
+            ->set('grades', "80:Gold\n0:Bronze\nnot-a-band")
+            ->set('thankYouMessage', 'Thanks a bunch!')
+            ->set('redirectUrl', 'https://example.com/next')
+            ->call('save')
             ->assertHasNoErrors();
 
         $settings = $quiz->refresh()->settings;

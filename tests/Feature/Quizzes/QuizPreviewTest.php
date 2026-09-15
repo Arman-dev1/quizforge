@@ -5,7 +5,9 @@ namespace Tests\Feature\Quizzes;
 use App\Enums\QuestionType;
 use App\Enums\WorkspaceRole;
 use App\Models\Quiz;
+use App\Models\QuizAnswer;
 use App\Models\QuizPage;
+use App\Models\QuizView;
 use App\Models\User;
 use App\Models\Workspace;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -41,7 +43,7 @@ class QuizPreviewTest extends TestCase
             ->get(route('quizzes.preview', $quiz))
             ->assertOk()
             ->assertSee('What is your name?')
-            ->assertSee(__('Preview mode — responses are not saved.'));
+            ->assertSee(__('Preview — you can answer and submit, but nothing is saved.'));
     }
 
     public function test_hidden_questions_are_not_rendered(): void
@@ -99,7 +101,7 @@ class QuizPreviewTest extends TestCase
         }
     }
 
-    public function test_navigation_moves_between_pages_and_clamps(): void
+    public function test_navigation_moves_between_pages(): void
     {
         [$user, $quiz] = $this->memberWithQuiz();
         QuizPage::factory()->for($quiz)->create(['title' => 'Intro', 'position' => 0]);
@@ -107,17 +109,81 @@ class QuizPreviewTest extends TestCase
 
         $this->actingAs($user);
 
-        $component = Volt::test('quizzes.preview', ['quiz' => $quiz]);
-
-        $component->assertSee('Intro')
-            ->call('next')
-            ->assertSee('Details')
+        Volt::test('quizzes.preview', ['quiz' => $quiz])
+            ->assertSee('Intro')
             ->call('next')
             ->assertSee('Details')
             ->call('previous')
             ->assertSee('Intro')
             ->call('previous')
             ->assertSee('Intro');
+    }
+
+    public function test_submitting_the_preview_completes_without_storing_anything(): void
+    {
+        [$user, $quiz] = $this->memberWithQuiz(WorkspaceRole::Editor);
+        $page = QuizPage::factory()->for($quiz)->create(['position' => 0]);
+        $page->questions()->create([
+            'quiz_id' => $quiz->id,
+            'type' => QuestionType::ShortText,
+            'title' => 'Your name',
+            'is_required' => true,
+            'position' => 0,
+        ]);
+
+        $this->actingAs($user);
+
+        $questionId = $quiz->questions()->first()->id;
+
+        // Required fields are enforced exactly as they are in the player.
+        Volt::test('quizzes.preview', ['quiz' => $quiz])
+            ->call('next')
+            ->assertHasErrors('answers.'.$questionId);
+
+        $component = Volt::test('quizzes.preview', ['quiz' => $quiz])
+            ->set('answers.'.$questionId, 'Ada')
+            ->call('next')
+            ->assertHasNoErrors()
+            ->assertSet('completed', true)
+            ->assertSee(__('Thank you!'));
+
+        // Nothing was persisted.
+        $this->assertSame(0, $quiz->responses()->withTrashed()->count());
+        $this->assertSame(0, QuizAnswer::count());
+        $this->assertSame(0, QuizView::count());
+
+        // And it can be run again from the top.
+        $component->call('restart')
+            ->assertSet('completed', false)
+            ->assertSet('step', 0);
+    }
+
+    public function test_the_preview_scores_in_memory_without_saving(): void
+    {
+        [$user, $quiz] = $this->memberWithQuiz(WorkspaceRole::Editor);
+        $quiz->update(['settings' => ['scored' => true, 'results' => ['show_score' => true]]]);
+
+        $page = QuizPage::factory()->for($quiz)->create(['position' => 0]);
+        $question = $page->questions()->create([
+            'quiz_id' => $quiz->id,
+            'type' => QuestionType::SingleChoice,
+            'title' => 'Pick the right one',
+            'position' => 0,
+            'settings' => ['points' => 5],
+        ]);
+        $right = $question->options()->create(['label' => 'Right', 'is_correct' => true, 'position' => 0]);
+        $question->options()->create(['label' => 'Wrong', 'is_correct' => false, 'position' => 1]);
+
+        $this->actingAs($user);
+
+        Volt::test('quizzes.preview', ['quiz' => $quiz])
+            ->set('answers.'.$question->id, $right->id)
+            ->call('next')
+            ->assertSet('completed', true)
+            ->assertSet('outcome.points', 5)
+            ->assertSet('outcome.max', 5);
+
+        $this->assertSame(0, $quiz->responses()->withTrashed()->count());
     }
 
     public function test_empty_quizzes_show_an_empty_state(): void

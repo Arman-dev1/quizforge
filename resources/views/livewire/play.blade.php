@@ -10,20 +10,35 @@ use App\Services\Player\AnswerValidator;
 use App\Services\Scoring\ResultResolver;
 use App\Services\Scoring\ScoringEngine;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Volt\Component;
 
 new #[Layout('components.layouts.player')] class extends Component {
+    // Everything the respondent must not be able to rewrite. Without
+    // #[Locked] a crafted Livewire update could point the player at
+    // another quiz's version, skip pages, or re-open a closed quiz.
+    #[Locked]
     public int $quizId;
+
+    #[Locked]
     public int $versionId;
+
+    #[Locked]
     public int $step = 0;
+
+    #[Locked]
     public bool $completed = false;
+
+    #[Locked]
     public bool $closed = false;
 
     /** @var array<int|string, mixed> answers keyed by question id */
     public array $answers = [];
 
     /** Respondent-facing result data set at completion. */
+    #[Locked]
     public array $outcome = [];
 
     protected ?Quiz $cachedQuiz = null;
@@ -41,16 +56,12 @@ new #[Layout('components.layouts.player')] class extends Component {
 
         $this->quizId = $quiz->id;
         $this->versionId = $version->id;
+        $this->cachedQuiz = $quiz;
+        $this->cachedVersion = $version;
 
-        if ($quiz->status === QuizStatus::Closed) {
-            $this->closed = true;
-
-            return;
-        }
-
-        // Monthly response quota reached: behave exactly like a closed
-        // quiz — billing details never leak to respondents.
-        if (! app(\App\Services\Billing\UsageLimits::class)->canAcceptResponse($quiz->workspace)) {
+        // Closed, or the monthly response quota is spent: behave exactly
+        // like a closed quiz — billing details never leak to respondents.
+        if (! $this->acceptingResponses()) {
             $this->closed = true;
 
             return;
@@ -59,7 +70,7 @@ new #[Layout('components.layouts.player')] class extends Component {
         \App\Models\QuizView::record($quiz);
 
         $this->resumeExistingResponse();
-        $this->initializeRankingDefaults();
+        $this->initializeAnswerDefaults();
     }
 
     protected function quiz(): Quiz
@@ -67,9 +78,25 @@ new #[Layout('components.layouts.player')] class extends Component {
         return $this->cachedQuiz ??= Quiz::withoutGlobalScope('workspace')->findOrFail($this->quizId);
     }
 
+    /**
+     * Always resolved through the quiz, so a tampered version id can never
+     * surface another quiz's (or an unpublished quiz's) content.
+     */
     protected function version(): QuizVersion
     {
-        return $this->cachedVersion ??= QuizVersion::findOrFail($this->versionId);
+        return $this->cachedVersion ??= $this->quiz()->versions()->findOrFail($this->versionId);
+    }
+
+    /**
+     * The gates that decide whether this quiz is still taking answers.
+     * Checked on every submission, not just at mount.
+     */
+    protected function acceptingResponses(): bool
+    {
+        $quiz = $this->quiz();
+
+        return ! in_array($quiz->status, [QuizStatus::Draft, QuizStatus::Archived, QuizStatus::Closed], true)
+            && app(\App\Services\Billing\UsageLimits::class)->canAcceptResponse($quiz->workspace);
     }
 
     /** @return array<int, array<string, mixed>> */
@@ -81,6 +108,11 @@ new #[Layout('components.layouts.player')] class extends Component {
     protected function sessionKey(): string
     {
         return 'player.token.'.$this->quizId;
+    }
+
+    protected function throttleKey(): string
+    {
+        return 'player:'.$this->quizId.':'.request()->ip();
     }
 
     protected function resumeExistingResponse(): void
@@ -130,16 +162,34 @@ new #[Layout('components.layouts.player')] class extends Component {
     }
 
     /**
-     * Ranking questions default to the shown order so an untouched
-     * list is still a valid answer.
+     * Seed the answer shapes that the inputs need before they are touched.
+     *
+     * Ranking starts in the shown order so an untouched list is still a
+     * valid answer.
+     *
+     * Multiple choice matters most: Livewire only gathers checkboxes into an
+     * array when the bound property already IS an array. Left as null, every
+     * box behaves as an independent boolean and only one selection survives.
      */
-    protected function initializeRankingDefaults(): void
+    protected function initializeAnswerDefaults(): void
     {
         $page = $this->pages()[$this->step] ?? null;
 
         foreach ($page['questions'] ?? [] as $question) {
-            if ($question['type'] === QuestionType::Ranking->value && ! isset($this->answers[$question['id']])) {
-                $this->answers[$question['id']] = array_column($question['options'], 'id');
+            if (isset($this->answers[$question['id']])) {
+                continue;
+            }
+
+            $this->answers[$question['id']] = match ($question['type']) {
+                QuestionType::Ranking->value => array_column($question['options'], 'id'),
+                QuestionType::MultipleChoice->value => [],
+                default => null,
+            };
+
+            // Leave untouched types genuinely unset rather than null, so
+            // "not answered" logic conditions still read correctly.
+            if ($this->answers[$question['id']] === null) {
+                unset($this->answers[$question['id']]);
             }
         }
     }
@@ -160,6 +210,24 @@ new #[Layout('components.layouts.player')] class extends Component {
         if ($this->closed || $this->completed) {
             return;
         }
+
+        // Re-assert the gates: a quiz can be closed, archived, or hit its
+        // monthly quota while a respondent is part-way through.
+        if (! $this->acceptingResponses()) {
+            $this->closed = true;
+
+            return;
+        }
+
+        // The route throttle only covers the initial page load; submissions
+        // are POSTs to /livewire/update, so they need their own limit.
+        if (\Illuminate\Support\Facades\RateLimiter::tooManyAttempts($this->throttleKey(), 40)) {
+            throw ValidationException::withMessages([
+                'answers' => __('Too many submissions. Please wait a moment and try again.'),
+            ]);
+        }
+
+        \Illuminate\Support\Facades\RateLimiter::hit($this->throttleKey(), 60);
 
         $pages = $this->pages();
         $page = $pages[$this->step] ?? null;
@@ -188,7 +256,7 @@ new #[Layout('components.layouts.player')] class extends Component {
 
         $this->step++;
         $response->update(['current_page' => $this->step]);
-        $this->initializeRankingDefaults();
+        $this->initializeAnswerDefaults();
     }
 
     public function previous(): void
@@ -208,15 +276,24 @@ new #[Layout('components.layouts.player')] class extends Component {
         $logicEngine = app(LogicEngine::class);
         $scoreResult = null;
 
-        if ($quiz->settings['scored'] ?? false) {
-            $visiblePages = array_map(fn (array $page) => [
-                'questions' => $logicEngine->visibleQuestions($page['questions'] ?? [], $this->answers),
-            ], $this->pages());
+        // Score against what was actually PERSISTED, never against the
+        // public $answers property — that array is client-writable, so
+        // scoring it would let a respondent grade their own paper.
+        $storedAnswers = $response->answers()->pluck('value', 'question_id')->all();
 
-            $scoreResult = app(ScoringEngine::class)->score($visiblePages, $this->answers);
+        $visiblePages = array_map(fn (array $page) => [
+            'questions' => $logicEngine->visibleQuestions($page['questions'] ?? [], $storedAnswers),
+        ], $this->pages());
+
+        if ($quiz->settings['scored'] ?? false) {
+            $scoreResult = app(ScoringEngine::class)->score($visiblePages, $storedAnswers);
         }
 
-        $resolved = app(ResultResolver::class)->resolve($quiz->settings ?? [], $scoreResult);
+        // Category tally drives category-matched result screens; it is cheap
+        // and only consulted when the quiz is in that mode.
+        $categoryTally = app(\App\Services\Scoring\CategoryScorer::class)->tally($visiblePages, $storedAnswers);
+
+        $resolved = app(ResultResolver::class)->resolve($quiz->settings ?? [], $scoreResult, $categoryTally);
 
         $response->update([
             'status' => QuizResponse::STATUS_COMPLETED,
@@ -234,9 +311,12 @@ new #[Layout('components.layouts.player')] class extends Component {
             new \App\Notifications\NewResponse($response),
         );
 
-        // Push the completed response to any connected email-marketing tools.
-        foreach ($quiz->integrations()->where('status', 'connected')->get() as $integration) {
-            \App\Jobs\SyncQuizResponse::dispatch($integration->id, $response->id);
+        // Push the completed response to any connected email-marketing tools —
+        // only while the workspace's plan still includes integrations.
+        if (app(\App\Services\Billing\UsageLimits::class)->feature($quiz->workspace, 'integrations')) {
+            foreach ($quiz->integrations()->where('status', 'connected')->get() as $integration) {
+                \App\Jobs\SyncQuizResponse::dispatch($integration->id, $response->id);
+            }
         }
 
         $this->outcome = [
@@ -250,6 +330,8 @@ new #[Layout('components.layouts.player')] class extends Component {
             'grade' => $resolved->grade,
             'message' => $resolved->message,
             'redirect' => $resolved->redirectUrl,
+            'title' => $resolved->title,
+            'description' => $resolved->description,
         ];
     }
 
@@ -299,7 +381,8 @@ new #[Layout('components.layouts.player')] class extends Component {
         $quiz = $this->quiz();
         $design = \App\Services\Design\QuizDesign::forQuiz($quiz);
         $disk = \Illuminate\Support\Facades\Storage::disk('public');
-        $proActive = app(\App\Services\Billing\UsageLimits::class)->planKey($quiz->workspace) !== 'free';
+        $proActive = app(\App\Services\Billing\UsageLimits::class)->feature($quiz->workspace, 'custom_code');
+        $canRemoveBranding = app(\App\Services\Billing\UsageLimits::class)->feature($quiz->workspace, 'remove_branding');
 
         return [
             'quiz' => $quiz,
@@ -312,6 +395,9 @@ new #[Layout('components.layouts.player')] class extends Component {
             'designLogo' => $design['logo'] ? $disk->url($design['logo']) : null,
             'designCover' => $design['cover'] ? $disk->url($design['cover']) : null,
             'designCustomCss' => $proActive ? str_ireplace('</style', '<\/style', trim((string) ($design['custom_css'] ?? ''))) : '',
+            // Shown unless the plan allows removal AND the author turned it
+            // off — so a downgrade puts the branding straight back.
+            'showBranding' => ! (($design['hide_branding'] ?? false) && $canRemoveBranding),
             'designCustomJs' => $proActive ? str_ireplace('</script', '<\/script', trim((string) ($design['custom_js'] ?? ''))) : '',
         ];
     }
@@ -320,6 +406,7 @@ new #[Layout('components.layouts.player')] class extends Component {
 <div
     class="flex min-h-svh flex-col"
     id="qf-player"
+    data-input-style="{{ $design['input_style'] ?? 'outline' }}"
     style="{{ $designStyle }};background:{{ $designBackground }};color:var(--qf-text);font-family:var(--qf-font);font-size:var(--qf-font-size)"
 >
     <style>
@@ -357,10 +444,21 @@ new #[Layout('components.layouts.player')] class extends Component {
                     <flux:icon.check class="size-7 text-white" />
                 </span>
 
-                <flux:heading size="lg" class="mt-5">{{ __('Thank you!') }}</flux:heading>
-                <flux:subheading class="mt-1">
-                    {{ ($outcome['message'] ?? null) ?: __('Your response has been recorded.') }}
-                </flux:subheading>
+                <flux:heading size="lg" class="mt-5">
+                    {{ ($outcome['title'] ?? null) ?: __('Thank you!') }}
+                </flux:heading>
+
+                @if ($outcome['description'] ?? null)
+                    {{-- Sanitized on save by HtmlSanitizer; never render
+                         author HTML that has not been through it. --}}
+                    <div class="qf-prose mt-3 text-left text-sm text-zinc-600 dark:text-zinc-300">
+                        {!! $outcome['description'] !!}
+                    </div>
+                @else
+                    <flux:subheading class="mt-1">
+                        {{ ($outcome['message'] ?? null) ?: __('Your response has been recorded.') }}
+                    </flux:subheading>
+                @endif
 
                 @if ($outcome['show_score'] ?? false)
                     <div class="mt-6 rounded-xl bg-zinc-50 p-5 dark:bg-zinc-800/60">
@@ -460,9 +558,11 @@ new #[Layout('components.layouts.player')] class extends Component {
             </div>
         @endif
 
-        <p class="mt-8 text-center text-xs" style="color:var(--qf-muted)">
-            {{ __('Powered by') }} <span class="font-semibold">QuizForge</span>
-        </p>
+        @if ($showBranding)
+            <p class="mt-8 text-center text-xs" style="color:var(--qf-muted)">
+                {{ __('Powered by') }} <span class="font-semibold">QuizForge</span>
+            </p>
+        @endif
     </main>
 
     @if ($designCustomJs !== '')
