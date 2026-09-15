@@ -5,8 +5,6 @@ namespace App\Models;
 use App\Enums\WorkspaceRole;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
-use Filament\Models\Contracts\FilamentUser;
-use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -14,7 +12,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 
-class User extends Authenticatable implements FilamentUser // implements MustVerifyEmail
+class User extends Authenticatable // implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
@@ -51,17 +49,7 @@ class User extends Authenticatable implements FilamentUser // implements MustVer
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'notification_preferences' => 'array',
-            'is_admin' => 'boolean',
         ];
-    }
-
-    /**
-     * Platform administration is a user-level flag, independent of any
-     * workspace role.
-     */
-    public function canAccessPanel(Panel $panel): bool
-    {
-        return $this->is_admin;
     }
 
     /**

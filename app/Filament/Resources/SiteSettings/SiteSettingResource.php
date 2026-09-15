@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\SiteSettings;
 
+use App\Filament\Resources\PlatformResource;
 use App\Filament\Resources\SiteSettings\Pages\ManageSiteSettings;
 use App\Models\SiteSetting;
 use BackedEnum;
@@ -10,18 +11,18 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
-use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
-class SiteSettingResource extends Resource
+class SiteSettingResource extends PlatformResource
 {
     protected static ?string $model = SiteSetting::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedGlobeAlt;
+
+    protected static string|\UnitEnum|null $navigationGroup = 'Platform';
 
     protected static ?string $navigationLabel = 'Landing page';
 
@@ -98,22 +99,10 @@ class SiteSettingResource extends Resource
                         TextInput::make('initials')->maxLength(3),
                     ])->columns(2)->reorderable()->collapsible()->itemLabel(fn (array $state): ?string => $state['name'] ?? null)->columnSpanFull(),
 
-                // ── Pricing ──────────────────────────────────
+                // ── Pricing (headings only — plans live in the Plans screen) ──
                 TextInput::make('data.pricing_eyebrow')->label('Pricing eyebrow'),
                 TextInput::make('data.pricing_title')->label('Pricing title'),
                 Textarea::make('data.pricing_subtitle')->label('Pricing subtitle')->rows(2)->columnSpanFull(),
-                Repeater::make('data.plans')->label('Pricing plans')
-                    ->schema([
-                        TextInput::make('name')->required(),
-                        TextInput::make('price')->required(),
-                        TextInput::make('period')->default('/mo'),
-                        TextInput::make('tagline'),
-                        TextInput::make('cta_label')->label('Button label'),
-                        Toggle::make('popular')->label('Highlight as most popular'),
-                        Textarea::make('features')->label('Feature bullets (one per line)')->rows(5)->columnSpanFull()
-                            ->formatStateUsing(fn ($state) => is_array($state) ? implode("\n", $state) : $state)
-                            ->dehydrateStateUsing(fn ($state) => array_values(array_filter(array_map('trim', explode("\n", (string) $state))))),
-                    ])->columns(2)->reorderable()->collapsible()->itemLabel(fn (array $state): ?string => $state['name'] ?? null)->columnSpanFull(),
 
                 // ── FAQ ──────────────────────────────────────
                 TextInput::make('data.faq_eyebrow')->label('FAQ eyebrow'),

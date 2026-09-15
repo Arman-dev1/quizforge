@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Actions\Workspaces\CreateWorkspace;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -18,7 +19,18 @@ class SetCurrentWorkspace
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $user = $request->user();
+        /*
+         | Pin the customer app to the `web` guard.
+         |
+         | The platform panel runs on `super_admin`, and during impersonation
+         | both sessions are live at once. Without this, every bare
+         | `auth()->user()` in the client app is a guess about which of the
+         | two is "current". This middleware runs on the web group only —
+         | Filament's panel has its own stack — so the panel is unaffected.
+         */
+        Auth::shouldUse('web');
+
+        $user = $request->user('web');
 
         if ($user) {
             $hasValidCurrent = $user->current_workspace_id

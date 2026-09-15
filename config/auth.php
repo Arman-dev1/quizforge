@@ -1,5 +1,8 @@
 <?php
 
+use App\Models\SuperAdmin;
+use App\Models\User;
+
 return [
 
     /*
@@ -40,6 +43,14 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        // Platform staff. A separate guard means a super admin session and a
+        // customer session coexist in the same browser — which is exactly
+        // what "log in as this client" needs.
+        'super_admin' => [
+            'driver' => 'session',
+            'provider' => 'super_admins',
+        ],
     ],
 
     /*
@@ -62,7 +73,12 @@ return [
     'providers' => [
         'users' => [
             'driver' => 'eloquent',
-            'model' => env('AUTH_MODEL', App\Models\User::class),
+            'model' => env('AUTH_MODEL', User::class),
+        ],
+
+        'super_admins' => [
+            'driver' => 'eloquent',
+            'model' => SuperAdmin::class,
         ],
 
         // 'users' => [
