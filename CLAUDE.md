@@ -90,6 +90,20 @@ php artisan app:sync-subscriptions          # reconcile subscriptions with Paddl
   answers, never the client-writable `$answers` array.
 - Snapshot content (with `is_correct`) must never enter Livewire public properties —
   it would leak answers to the browser. Fetch per request in `with()`.
+- **The player is theme-isolated.** `components/layouts/player.blade.php` passes
+  `['appearance' => false]` to `partials.head`, so `@fluxAppearance` never runs and
+  `.dark` is never set on a published quiz — the respondent's OS theme must not
+  override the author's design. Inside `#qf-player`, colour comes from `--qf-*`
+  only; do not reintroduce `bg-white dark:bg-zinc-900` pairs there.
+- **A design theme carries its background.** The quiz title renders outside the
+  card, so `QuizDesign::themes()` includes a `page` colour and `applyTheme()`
+  moves `background_color`/`gradient_*` with the preset (the editor mirrors this
+  in `pickTheme`). Without it, Dark gave pale text on a pale page.
+- **Never declare a bare `$table->timestamp()` that is NOT NULL and first in its
+  table.** With `explicit_defaults_for_timestamp` off (common on shared hosting)
+  MySQL silently adds `ON UPDATE CURRENT_TIMESTAMP`, so the column is rewritten
+  to "now" on every save. Use `dateTime()` for business timestamps —
+  see `2026_09_15_120000_stop_mysql_rewriting_timestamp_columns`.
 - **No `@tailwindcss/forms`.** Native controls get zero styling, so `border-zinc-300`
   alone paints a colour on a 0-width border — the field renders invisible. Player
   controls use the `.qf-field` / `.qf-choice` / `.qf-scale-btn` classes in app.css,
