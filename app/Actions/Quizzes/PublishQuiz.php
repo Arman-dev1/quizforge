@@ -42,8 +42,12 @@ class PublishQuiz
 
     /**
      * Snapshot pages with their visible questions and options.
+     *
+     * Public because the preview screen renders draft content through the
+     * exact same shape the player consumes — that is what makes the preview
+     * a real preview rather than a lookalike.
      */
-    protected function buildContent(Quiz $quiz): array
+    public function buildContent(Quiz $quiz): array
     {
         $pages = $quiz->pages()
             ->with(['questions' => fn ($query) => $query->where('is_hidden', false)->with('options')])
@@ -67,6 +71,10 @@ class PublishQuiz
                         'id' => $option->id,
                         'label' => $option->label,
                         'is_correct' => $option->is_correct,
+                        // Drives category-matched result screens.
+                        'category' => ($option->settings ?? [])['category'] ?? null,
+                        // Image-choice thumbnail, when one has been set.
+                        'image' => ($option->settings ?? [])['image'] ?? null,
                     ])->all(),
                 ])->all(),
             ])

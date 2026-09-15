@@ -36,6 +36,7 @@ class QuizContentSerializer
                         'id' => $option->id,
                         'label' => $option->label,
                         'is_correct' => $option->is_correct,
+                        'settings' => $option->settings ?? [],
                     ])->all(),
                 ])->all(),
             ])

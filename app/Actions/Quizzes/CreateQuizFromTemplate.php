@@ -67,6 +67,9 @@ class CreateQuizFromTemplate
                             'label' => $optionData['label'],
                             'is_correct' => (bool) ($optionData['is_correct'] ?? false),
                             'position' => $optionIndex,
+                            // Carries the option's category through, so a
+                            // template of a category quiz stays one.
+                            'settings' => $optionData['settings'] ?? null,
                         ]);
 
                         if (isset($optionData['id'])) {
