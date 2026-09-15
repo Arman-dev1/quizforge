@@ -23,6 +23,6 @@ yarn-error.log
 /.vscode
 /.zed
 
-# Local Claude Code tooling (machine-specific)
-.claude/launch.json
-.claude/settings.local.json
+# Local tooling and CI, kept out of the repo
+.claude/
+.github/workflows/
