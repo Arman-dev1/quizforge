@@ -22,3 +22,7 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# Local Claude Code tooling (machine-specific)
+.claude/launch.json
+.claude/settings.local.json

@@ -1,10 +1,10 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/livewire-starter-kit",
+    "name": "quizforge/app",
     "type": "project",
-    "description": "The official Laravel starter kit for Livewire.",
-    "keywords": ["laravel", "framework"],
-    "license": "MIT",
+    "description": "QuizForge — a quiz, survey and assessment platform.",
+    "keywords": ["quiz", "survey", "assessment", "laravel"],
+    "license": "proprietary",
     "require": {
         "php": "^8.2",
         "filament/filament": "^5.6",
@@ -67,10 +67,9 @@
         "preferred-install": "dist",
         "sort-packages": true,
         "allow-plugins": {
-            "pestphp/pest-plugin": true,
             "php-http/discovery": true
         }
     },
-    "minimum-stability": "dev",
+    "minimum-stability": "stable",
     "prefer-stable": true
 }

@@ -28,11 +28,15 @@ and Cashier Paddle**.
 - **Templates** — six seeded starter templates plus save-your-own
 - **Notifications** — in-app bell + optional email for responses, leads, and
   team activity, with per-user preferences
-- **Billing** — Free/Pro/Scale plans with usage limits, Paddle checkout
-- **Admin panel** — Filament panel at `/admin` for users, workspaces, and the
-  global template catalog
+- **Billing** — Free and Pro plans with usage limits, Paddle checkout, admin-editable from the panel
+- **Platform panel** — Filament panel at `/super-admin` (separate `super_admins`
+  table and guard) for customers, workspaces, plans, the template catalog and the
+  landing page — including "log in as" any customer
 
 ## Setup
+
+> Deploying to a live server (Hostinger, cPanel, VPS)? See **[DEPLOYMENT.md](DEPLOYMENT.md)**
+> for the full walkthrough, including where files go on shared hosting.
 
 ```bash
 git clone <repo> quizforge && cd quizforge
@@ -47,24 +51,56 @@ php artisan migrate --seed
 composer dev   # serves the app + queue worker + vite
 ```
 
-Register at `/register`, then grant yourself platform admin:
+`migrate --seed` creates the Free and Pro plans, the starter quiz templates, and
+**one platform admin** — it prints the credentials, so copy the password before
+the output scrolls away. Set `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` in
+`.env` first if you'd rather choose them yourself.
+
+No users, workspaces or quizzes are seeded. Register at `/register` for a
+customer account; a personal workspace is created for you automatically on first
+sign-in. Sign in as platform staff at `/super-admin`.
+
+To add another platform account later (or reset one's password):
 
 ```bash
-php artisan app:make-admin you@example.com
+php artisan app:make-super-admin you@example.com
 ```
 
-### Billing (optional)
+Then sign in at `/super-admin`. Because staff use a separate authentication guard,
+you can be signed in as a platform admin and as a customer at the same time — and
+the Customers screen has a **Log in as** action that opens any customer's account
+without ending your platform session.
 
-Create a [Paddle sandbox](https://sandbox-vendors.paddle.com) account and fill
-the `PADDLE_*` variables in `.env` (seller id, API key, client-side token,
-webhook secret, and the price ids for the Pro and Scale plans). Until then the
-app runs entirely on the Free plan and the billing page shows checkout as not
-configured.
+### Payments (optional)
+
+Gateway credentials are managed in the app, not in `.env`: sign in at
+`/super-admin` and go to **Platform → Payments**. Pick Paddle or Stripe, enter the
+keys, and leave "Test mode" on until you have live keys. Keys are stored encrypted.
+
+Then create the product/price in your gateway and paste the **price ID** into the
+plan under **Catalog → Plans** (`pri_…` for Paddle, `price_…` for Stripe). The Plans
+list shows a "No price ID" badge for any paid plan that can't be checked out yet.
+
+Paddle's webhook destination is `https://your-domain.com/paddle/webhook` — it must
+be publicly reachable, so use a tunnel (e.g. `ngrok http 8000`) while developing.
+
+> Stripe is currently **credential management only**. Completing a Stripe checkout
+> needs `laravel/cashier`, which isn't installed and conflicts with the Paddle
+> cashier package already in use.
+
+### Billing via .env (legacy)
+
+The `PADDLE_*` variables in `.env` still work and are used whenever the Payments
+screen has no gateway selected — so installs configured before that screen existed
+keep running unchanged. Anything set in the panel takes precedence.
+
+Until a gateway is configured either way, every workspace stays on the Free plan
+and the billing page shows checkout as unavailable.
 
 ## Testing
 
 ```bash
-php artisan test          # 215+ tests, in-memory sqlite
+php artisan test          # 250+ tests, in-memory sqlite
 vendor/bin/pint --dirty   # code style
 ```
 
