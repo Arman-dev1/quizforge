@@ -16,7 +16,7 @@
         ['cmd' => 'italic', 'icon' => 'italic', 'label' => __('Italic')],
         ['cmd' => 'underline', 'icon' => 'underline', 'label' => __('Underline')],
         ['divider' => true],
-        ['cmd' => 'formatBlock', 'value' => 'h3', 'icon' => 'h-3', 'label' => __('Heading')],
+        ['cmd' => 'formatBlock', 'value' => 'h3', 'icon' => 'h3', 'label' => __('Heading')],
         ['cmd' => 'insertUnorderedList', 'icon' => 'list-bullet', 'label' => __('Bulleted list')],
         ['cmd' => 'insertOrderedList', 'icon' => 'numbered-list', 'label' => __('Numbered list')],
         ['divider' => true],
