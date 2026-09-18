@@ -31,3 +31,6 @@ yarn-error.log
 .github/workflows/
 marketing/
 database/quizforge.sql
+
+# Generated deliverables, not source
+QuizForge-Installation-Guide.docx

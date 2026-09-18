@@ -195,7 +195,21 @@ enum QuestionType: string
     }
 
     /**
+     * Whether the public player can actually collect an answer of this type.
+     *
+     * File upload and signature render a "coming soon" placeholder rather than
+     * a working control, so they must not be offered in the builder — an
+     * author who picks one would publish a question nobody can answer. The
+     * cases stay in the enum so quizzes that already store them keep resolving.
+     */
+    public function isAvailable(): bool
+    {
+        return ! in_array($this, [self::FileUpload, self::Signature], true);
+    }
+
+    /**
      * Types grouped by category for the picker, preserving enum order.
+     * Only types the player fully supports are offered.
      *
      * @return array<string, array<int, self>>
      */
@@ -204,6 +218,10 @@ enum QuestionType: string
         $groups = [];
 
         foreach (self::cases() as $type) {
+            if (! $type->isAvailable()) {
+                continue;
+            }
+
             $groups[$type->category()][] = $type;
         }
 

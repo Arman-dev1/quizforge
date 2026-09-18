@@ -714,6 +714,11 @@ new #[Layout('components.layouts.app.shell')] class extends Component
     public function addQuestion(string $type): void
     {
         $questionType = QuestionType::from($type);
+
+        // The picker only lists available types; this stops a crafted request
+        // creating a question the player cannot render.
+        abort_unless($questionType->isAvailable(), 422);
+
         $page = $this->quiz->pages()->findOrFail($this->pickingForPageId);
 
         $this->pushHistory();
@@ -748,6 +753,8 @@ new #[Layout('components.layouts.app.shell')] class extends Component
         }
 
         $newType = QuestionType::from($type);
+
+        abort_unless($newType->isAvailable(), 422);
 
         if ($newType === $question->type) {
             return;
