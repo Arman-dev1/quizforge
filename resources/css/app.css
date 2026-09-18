@@ -411,3 +411,74 @@ select:focus[data-flux-control] {
         scroll-behavior: auto !important;
     }
 }
+
+/*
+ | Public document pages
+ |--------------------------------------------------------------------------
+ | Terms, privacy and the like are long-form author HTML from the rich text
+ | editor. The editor only emits a small tag set (see HtmlSanitizer), so this
+ | covers all of it rather than pulling in a typography plugin.
+ */
+.qf-doc {
+    color: var(--color-zinc-600);
+    font-size: 1rem;
+    line-height: 1.75;
+}
+
+.qf-doc > :first-child {
+    margin-top: 0;
+}
+
+.qf-doc h2,
+.qf-doc h3,
+.qf-doc h4 {
+    color: var(--color-zinc-900);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-top: 2.25rem;
+    margin-bottom: 0.75rem;
+}
+
+.qf-doc h2 { font-size: 1.5rem; }
+.qf-doc h3 { font-size: 1.2rem; }
+.qf-doc h4 { font-size: 1.05rem; }
+
+.qf-doc p {
+    margin-bottom: 1.1rem;
+}
+
+.qf-doc strong {
+    color: var(--color-zinc-900);
+    font-weight: 700;
+}
+
+.qf-doc ul,
+.qf-doc ol {
+    margin: 0 0 1.1rem 1.35rem;
+}
+
+.qf-doc ul { list-style: disc; }
+.qf-doc ol { list-style: decimal; }
+
+.qf-doc li {
+    margin-bottom: 0.45rem;
+    padding-left: 0.25rem;
+}
+
+.qf-doc a {
+    color: var(--color-teal-700);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.qf-doc a:hover {
+    color: var(--color-teal-800);
+}
+
+.qf-doc blockquote {
+    border-left: 3px solid var(--color-teal-500);
+    padding-left: 1rem;
+    margin: 0 0 1.1rem;
+    color: var(--color-zinc-500);
+    font-style: italic;
+}

@@ -63,6 +63,7 @@ class SiteSetting extends Model
             'nav' => [
                 ['label' => 'Features', 'url' => '#features'],
                 ['label' => 'How it works', 'url' => '#how'],
+                ['label' => 'Integrations', 'url' => '/page/integrations'],
                 ['label' => 'Pricing', 'url' => '#pricing'],
                 ['label' => 'FAQ', 'url' => '#faq'],
             ],
@@ -134,23 +135,18 @@ class SiteSetting extends Model
             'cta_secondary_url' => '#pricing',
 
             'footer_tagline' => 'The quiz builder for teams who care about completion, leads, and insight.',
+            /*
+             | Only links that actually go somewhere. The Company column is
+             | not here — it is built from the published content pages, so
+             | adding or unpublishing a document updates the footer on its
+             | own. A placeholder "#" link is dropped rather than rendered.
+             */
             'footer_columns' => [
                 ['heading' => 'Product', 'links' => [
                     ['label' => 'Features', 'url' => '#features'],
+                    ['label' => 'How it works', 'url' => '#how'],
                     ['label' => 'Pricing', 'url' => '#pricing'],
-                    ['label' => 'Templates', 'url' => '#'],
-                    ['label' => 'Integrations', 'url' => '#'],
-                ]],
-                ['heading' => 'Company', 'links' => [
-                    ['label' => 'About', 'url' => '#'],
-                    ['label' => 'Blog', 'url' => '#'],
-                    ['label' => 'Careers', 'url' => '#'],
-                    ['label' => 'Contact', 'url' => '#'],
-                ]],
-                ['heading' => 'Legal', 'links' => [
-                    ['label' => 'Privacy', 'url' => '#'],
-                    ['label' => 'Terms', 'url' => '#'],
-                    ['label' => 'Security', 'url' => '#'],
+                    ['label' => 'Integrations', 'url' => '/page/integrations'],
                 ]],
             ],
             'footer_copyright' => '© '.date('Y').' QuizForge. All rights reserved.',

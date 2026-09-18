@@ -16,35 +16,7 @@
     <body class="min-h-screen bg-white text-zinc-900 antialiased">
 
         {{-- ─────────────── Nav ─────────────── --}}
-        <header class="sticky top-0 z-50 border-b border-zinc-100 bg-white/80 backdrop-blur">
-            <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-3.5">
-                <div class="flex items-center gap-9">
-                    <a href="{{ route('home') }}" class="flex items-center gap-2.5">
-                        <span class="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 to-teal-600 text-white">
-                            <flux:icon.bolt class="size-4" />
-                        </span>
-                        <span class="text-lg font-extrabold tracking-tight">{{ $c['brand'] }}</span>
-                    </a>
-                    <nav class="hidden items-center gap-7 md:flex">
-                        @foreach ($c['nav'] as $item)
-                            <a href="{{ $item['url'] }}" class="text-sm font-semibold text-zinc-500 transition hover:text-zinc-900">{{ $item['label'] }}</a>
-                        @endforeach
-                    </nav>
-                </div>
-                <div class="flex items-center gap-3">
-                    @auth
-                        <a href="{{ route('dashboard') }}" class="inline-flex items-center gap-1.5 rounded-lg bg-teal-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-teal-700">
-                            {{ __('Open dashboard') }}<flux:icon.arrow-right class="size-4" />
-                        </a>
-                    @else
-                        <a href="{{ $login }}" class="hidden text-sm font-semibold text-zinc-500 transition hover:text-zinc-900 sm:inline">{{ __('Log in') }}</a>
-                        <a href="{{ $register }}" class="inline-flex items-center gap-1.5 rounded-lg bg-teal-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-teal-700">
-                            {{ __('Start free') }}<flux:icon.arrow-right class="size-4" />
-                        </a>
-                    @endauth
-                </div>
-            </div>
-        </header>
+        <x-marketing.header :c="$c" />
 
         <main>
             {{-- ─────────────── Hero ─────────────── --}}
@@ -260,37 +232,7 @@
         </main>
 
         {{-- ─────────────── Footer ─────────────── --}}
-        <footer class="border-t border-zinc-100 px-6 pt-14 pb-8">
-            <div class="mx-auto grid max-w-6xl gap-10 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr_1fr]">
-                <div>
-                    <a href="{{ route('home') }}" class="flex items-center gap-2.5">
-                        <span class="flex size-7 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 to-teal-600 text-white">
-                            <flux:icon.bolt class="size-4" />
-                        </span>
-                        <span class="text-lg font-extrabold tracking-tight">{{ $c['brand'] }}</span>
-                    </a>
-                    <p class="mt-4 max-w-xs text-sm leading-relaxed text-zinc-400">{{ $c['footer_tagline'] }}</p>
-                </div>
-                @foreach ($c['footer_columns'] as $col)
-                    <div>
-                        <p class="mb-3.5 text-[11px] font-semibold tracking-[0.08em] text-zinc-400 uppercase">{{ $col['heading'] }}</p>
-                        <div class="flex flex-col gap-2.5">
-                            @foreach ($col['links'] as $link)
-                                <a href="{{ $link['url'] }}" class="text-sm text-zinc-500 transition hover:text-zinc-900">{{ $link['label'] }}</a>
-                            @endforeach
-                        </div>
-                    </div>
-                @endforeach
-            </div>
-            <div class="mx-auto mt-11 flex max-w-6xl flex-wrap items-center justify-between gap-3 border-t border-zinc-100 pt-6">
-                <span class="text-sm text-zinc-400">{{ $c['footer_copyright'] }}</span>
-                <div class="flex gap-4 text-zinc-400">
-                    <a href="#" class="transition hover:text-zinc-700"><flux:icon.globe-alt class="size-5" /></a>
-                    <a href="#" class="transition hover:text-zinc-700"><flux:icon.chat-bubble-left-right class="size-5" /></a>
-                    <a href="#" class="transition hover:text-zinc-700"><flux:icon.envelope class="size-5" /></a>
-                </div>
-            </div>
-        </footer>
+        <x-marketing.footer :c="$c" />
 
         @fluxScripts
     </body>

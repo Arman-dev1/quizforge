@@ -29,7 +29,7 @@ yarn-error.log
 # Local tooling and CI, kept out of the repo
 .claude/
 .github/workflows/
-marketing/
+/marketing/
 database/quizforge.sql
 
 # Generated deliverables, not source

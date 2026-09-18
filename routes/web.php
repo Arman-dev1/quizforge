@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ContentPageController;
 use App\Http\Controllers\Platform\ImpersonationController;
 use App\Http\Controllers\ResponseExportController;
 use Illuminate\Support\Facades\Route;
@@ -15,6 +16,13 @@ Volt::route('quiz/{slug}', 'play')
     ->name('quiz.play');
 
 Route::permanentRedirect('q/{slug}', 'quiz/{slug}');
+
+// Public documents managed from the platform panel: about, terms, privacy,
+// refunds, integrations. A single route rather than one per document, so an
+// owner adding a page does not need a code change.
+Route::get('page/{slug}', [ContentPageController::class, 'show'])
+    ->where('slug', '[a-z0-9-]+')
+    ->name('page.show');
 
 // Ending an impersonated session. Starting one happens inside the panel
 // (a CSRF-protected Livewire action); this only ever drops a session, so it

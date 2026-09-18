@@ -19,9 +19,10 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            PlanSeeder::class,        // Free + Pro, from config/plans.php
-            TemplateSeeder::class,    // the global starter quiz templates
-            SuperAdminSeeder::class,  // the first platform account
+            PlanSeeder::class,         // Free + Pro, from config/plans.php
+            TemplateSeeder::class,     // the global starter quiz templates
+            ContentPageSeeder::class,  // About, Terms, Privacy, Refunds, Integrations
+            SuperAdminSeeder::class,   // the first platform account
         ]);
     }
 }
